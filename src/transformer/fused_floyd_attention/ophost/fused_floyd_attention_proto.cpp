@@ -81,7 +81,13 @@ ge::graphStatus InferShapeFusedFloydAttention(gert::InferShapeContext *context)
     // softmaxMax, fp32: (B, N, S, 8)
     gert::Shape *softmaxMaxShape = context->GetOutputShape(0);
     OPS_LOG_E_IF_NULL(context, softmaxMaxShape, return ge::GRAPH_FAILED)
-    
+    softmaxMaxShape->SetDimNum(5);
+    softmaxMaxShape->SetDim(0, );
+    softmaxMaxShape->SetDim(1, );
+    softmaxMaxShape->SetDim(2, );
+    softmaxMaxShape->SetDim(3, );
+    softmaxMaxShape->SetDim(4, );
+
     // if (inputLayoutStr == "TND") {
     //     softmaxMaxShape->SetDimNum(DIM_NUM_3);
     //     softmaxMaxShape->SetDim(0, shapeT);
@@ -101,17 +107,17 @@ ge::graphStatus InferShapeFusedFloydAttention(gert::InferShapeContext *context)
     OPS_LOG_E_IF_NULL(context, softmaxSumShape, return ge::GRAPH_FAILED)
     *softmaxSumShape = *softmaxMaxShape;
 
-    // softmaxOut, shape: (B, N, S, S)
-    gert::Shape *softmaxOutShape = context->GetOutputShape(2);
-    OPS_LOG_E_IF_NULL(context, softmaxOutShape, return ge::GRAPH_FAILED)
-    // 0, 1, 2, 3, 4 : dim idx
-    softmaxOutShape->SetDimNum(DIM_NUM_4);
-    softmaxOutShape->SetDim(0, 0);
-    softmaxOutShape->SetDim(1, 0);
-    softmaxOutShape->SetDim(DIM_NUM_2, 0);
-    softmaxOutShape->SetDim(DIM_NUM_3, 0);
+    // // softmaxOut, shape: (B, N, S, S)
+    // gert::Shape *softmaxOutShape = context->GetOutputShape(2);
+    // OPS_LOG_E_IF_NULL(context, softmaxOutShape, return ge::GRAPH_FAILED)
+    // // 0, 1, 2, 3, 4 : dim idx
+    // softmaxOutShape->SetDimNum(DIM_NUM_4);
+    // softmaxOutShape->SetDim(0, 0);
+    // softmaxOutShape->SetDim(1, 0);
+    // softmaxOutShape->SetDim(DIM_NUM_2, 0);
+    // softmaxOutShape->SetDim(DIM_NUM_3, 0);
 
-    gert::Shape *attentionOutShape = context->GetOutputShape(3);
+    gert::Shape *attentionOutShape = context->GetOutputShape(2);
     OPS_LOG_E_IF_NULL(context, attentionOutShape, return ge::GRAPH_FAILED)
     *attentionOutShape = *queryShape;
 
@@ -128,10 +134,10 @@ ge::graphStatus InferDataTypeFusedFloydAttention(gert::InferDataTypeContext *con
     context->SetOutputDataType(0, DT_FLOAT);
     // softmax_sum, outidx:1
     context->SetOutputDataType(1, DT_FLOAT);
-    // softmax_out, outidx:2
-    context->SetOutputDataType(2, dtype);
+    // // softmax_out, outidx:2
+    // context->SetOutputDataType(2, dtype);
     // attention_out, outidx:3
-    context->SetOutputDataType(3, dtype);
+    context->SetOutputDataType(2, dtype);
     return GRAPH_SUCCESS;
 }
 
