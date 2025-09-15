@@ -22,12 +22,9 @@ extern "C" {
  * @domain aclnn_ops_infer
  */
 aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
-    const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *realShiftOptional,
-    const aclTensor *dropMaskOptional, const aclTensor *paddingMaskOptional, const aclTensor *attenMaskOptional,
-    const aclIntArray *prefixOptional, double scaleValueOptional, double keepProbOptional, int64_t preTokensOptional,
-    int64_t nextTokensOptional, int64_t headNum, char *inputLayout, int64_t innerPreciseOptional,
-    int64_t sparseModeOptional, const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut,
-    const aclTensor *softmaxOutOut, const aclTensor *attentionOutOut, uint64_t *workspaceSize,
+    const aclTensor *query, const aclTensor *key0, const aclTensor *key1, const aclTensor *value0,
+    const aclTensor *value1, const aclTensor *attenMaskOptional, float scaleValue, const aclTensor *softmaxMaxOut, 
+    const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut, uint64_t *workspaceSize,
     aclOpExecutor **executor);
 
 /**
@@ -39,4 +36,4 @@ aclnnStatus aclnnFusedFloydAttention(void *workspace, uint64_t workspaceSize, ac
 }
 #endif
 
-#endif // OP_API_INC_LEVEL2_ACLNN_FLASH_ATTENTION_SCORE_H_
+#endif // OP_API_INC_LEVEL2_ACLNN_FUSED_FLOYD_ATTENTION_H_
