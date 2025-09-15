@@ -21,48 +21,23 @@ if case_name == 'test_flash_attention_score':
     key.tofile('key.bin')
     value.tofile('value.bin')
 
-elif case_name == 'test_flash_attention_varLen_score':
-    query = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    key = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    value = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
+elif case_name == 'test_fused_floyd_attention':
+    B = 1
+    H = 6
+    N = 100
+    M = 100
+    K = 100
+    D = 32
+    query = np.random.uniform(-0.1, 0.1, (B, H, N, M, D)) # BHNMD
+    key_0 = np.random.uniform(-0.1, 0.1, (B, H, N, K, D)) # BHNKD
+    key_1 = np.random.uniform(-0.1, 0.1, (B, H, K, M, D)) # BHKMD
+    value_0 = np.random.uniform(-0.1, 0.1, (B, H, N, K, D)) # BHNKD
+    value_1 = np.random.uniform(-0.1, 0.1, (B, H, K, M, D)) # BHKMD
     query.tofile('query.bin')
-    key.tofile('key.bin')
-    value.tofile('value.bin')
-
-elif case_name == 'test_flash_attention_score_grad':
-    query = np.random.uniform(-0.1, 0.1, (256, 1, 512)).astype(np.float16)
-    key = np.random.uniform(-0.1, 0.1, (256, 1, 512)).astype(np.float16)
-    value = np.random.uniform(-0.1, 0.1, (256, 1, 512)).astype(np.float16)
-    dx = np.random.uniform(-0.1, 0.1, (256, 1, 512)).astype(np.float16)
-    attentionIn = np.random.uniform(-0.1, 0.1, (256, 1, 512)).astype(np.float16)
-    softmaxMax = np.random.uniform(-0.1, 0.1, (1, 4, 256, 1)).astype(np.float32)
-    softmaxMax = np.repeat(softmaxMax, 8, axis=-1)
-    softmaxSum = np.random.uniform(0, 1, (1, 4, 256, 1)).astype(np.float32)
-    softmaxSum = np.repeat(softmaxSum, 8, axis=-1)
-    query.tofile('query.bin')
-    key.tofile('key.bin')
-    value.tofile('value.bin')
-    dx.tofile('dx.bin')
-    attentionIn.tofile('attentionIn.bin')
-    softmaxMax.tofile('softmaxMax.bin')
-    softmaxSum.tofile('softmaxSum.bin')
-
-elif case_name == 'test_flash_attention_unpadding_score_grad':
-    query = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    key = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    value = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    dx = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    attentionIn = np.random.uniform(-0.1, 0.1, (256, 4, 128)).astype(np.float16)
-    softmaxMax = np.random.uniform(-0.1, 0.1, (256, 4, 1)).astype(np.float32)
-    softmaxMax = np.repeat(softmaxMax, 8, axis=-1)
-    softmaxSum = np.random.uniform(0, 1, (256, 4, 1)).astype(np.float32)
-    softmaxSum = np.repeat(softmaxSum, 8, axis=-1)
-    query.tofile('query.bin')
-    key.tofile('key.bin')
-    value.tofile('value.bin')
-    dx.tofile('dx.bin')
-    attentionIn.tofile('attentionIn.bin')
-    softmaxMax.tofile('softmaxMax.bin')
-    softmaxSum.tofile('softmaxSum.bin')
+    key_0.tofile('key_0.bin')
+    key_1.tofile('key_1.bin')
+    value_0.tofile('value_0.bin')
+    value_1.tofile('value_1.bin')
+    
 else:
     raise RuntimeError(f"Invalid case name:", case_name)
