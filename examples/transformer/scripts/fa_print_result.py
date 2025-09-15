@@ -28,7 +28,8 @@ def show():
 
         attention_out = np.fromfile('attentionOut.bin', dtype=np.float16)
         print('attentionOut: ', attention_out)
-
+    elif case_name == 'test_fused_floyd_attention':
+        print("The result from fused_floyd_attention!")
     else:
         dq = np.fromfile('dq.bin', dtype=np.float16)
         print('dq: ', dq)
