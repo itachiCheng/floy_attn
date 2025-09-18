@@ -20,7 +20,8 @@
 #include <fstream>
 #include <sys/stat.h>
 #include "acl/acl.h"
-#include ""
+// To Fix
+#include "/data/zmmVol2/c00611613/floy_attn-master/src/transformer/fused_floyd_attention/ophost/aclnn_fused_floyd_attention.h"
 
 
 #define CHECK_RET(cond, return_expr)                                                                                   \
@@ -156,8 +157,8 @@ int CreateAclTensor(std::string &filePath, const std::vector<int64_t> &shape, in
     return 0;
 }
 
-void FreeResource(aclTensor *q, aclTensor *k, aclTensor *v, aclTensor *attentionOut, aclTensor *softmaxMax,
-    aclTensor *softmaxSum, void *qDeviceAddr, void *kDeviceAddr, void *vDeviceAddr, void *attentionOutDeviceAddr,
+void FreeResource(aclTensor *q, aclTensor *k0, aclTensor *k1, aclTensor *v0, aclTensor *v1, aclTensor *attentionOut, aclTensor *softmaxMax,
+    aclTensor *softmaxSum, void *qDeviceAddr, void *k0DeviceAddr, void *k1DeviceAddr, void *v0DeviceAddr, void *v1DeviceAddr, void *attnDeviceAddr, void *attentionOutDeviceAddr,
     void *softmaxMaxDeviceAddr, void *softmaxSumDeviceAddr, uint64_t workspaceSize, void *workspaceAddr,
     int32_t deviceId, aclrtContext *context, aclrtStream *stream)
 {
@@ -165,11 +166,17 @@ void FreeResource(aclTensor *q, aclTensor *k, aclTensor *v, aclTensor *attention
     if (q != nullptr) {
         aclDestroyTensor(q);
     }
-    if (k != nullptr) {
-        aclDestroyTensor(k);
+    if (k0 != nullptr) {
+        aclDestroyTensor(k0);
     }
-    if (v != nullptr) {
-        aclDestroyTensor(v);
+    if (k1 != nullptr) {
+        aclDestroyTensor(k1);
+    }
+    if (v0 != nullptr) {
+        aclDestroyTensor(v0);
+    }
+    if (v1 != nullptr) {
+        aclDestroyTensor(v1);
     }
     if (attentionOut != nullptr) {
         aclDestroyTensor(attentionOut);
@@ -185,11 +192,20 @@ void FreeResource(aclTensor *q, aclTensor *k, aclTensor *v, aclTensor *attention
     if (qDeviceAddr != nullptr) {
         aclrtFree(qDeviceAddr);
     }
-    if (kDeviceAddr != nullptr) {
-        aclrtFree(kDeviceAddr);
+    if (k0DeviceAddr != nullptr) {
+        aclrtFree(k0DeviceAddr);
     }
-    if (vDeviceAddr != nullptr) {
-        aclrtFree(vDeviceAddr);
+    if (k1DeviceAddr != nullptr) {
+        aclrtFree(k1DeviceAddr);
+    }
+    if (v0DeviceAddr != nullptr) {
+        aclrtFree(v0DeviceAddr);
+    }
+    if (v1DeviceAddr != nullptr) {
+        aclrtFree(v1DeviceAddr);
+    }
+    if (attnDeviceAddr != nullptr) {
+        aclrtFree(attnDeviceAddr);
     }
     if (attentionOutDeviceAddr != nullptr) {
         aclrtFree(attentionOutDeviceAddr);
@@ -226,49 +242,52 @@ int main(int argc, char **argv)
     // 2. 构造输入与输出，需要根据API的接口自定义构造
     // 如果需要修改shape值，需要同步修改../scripts/fa_generate_data.py中 test_fused_floyd_attention 分支下生成
     // query、key、value对应的shape值，并重新gen data，再执行
-    int64_t batch = 1;
-    int64_t sq = 2048;
-    int64_t skv = 2048;
-    int64_t headDim = 128;
-    int64_t headNum = 1;
-    int64_t h = headNum * headDim;
-    std::vector<int64_t> qShape = {sq, batch, h};
-    std::vector<int64_t> kShape = {skv, batch, h};
-    std::vector<int64_t> vShape = {skv, batch, h};
-    std::vector<int64_t> attentionOutShape = {sq, batch, h};
-    std::vector<int64_t> softmaxMaxShape = {batch, headNum, sq, 8};
-    std::vector<int64_t> softmaxSumShape = {batch, headNum, sq, 8};
-    double scaleValue = 0.088388;
-    double keepProb = 1;
-    int64_t preTokens = 2147483647;
-    int64_t nextTokens = 2147483647;
-    int64_t innerPrecise = 0;
-    int64_t sparseMod = 0;
-    char layOut[] = "SBH";
+    // int64_t batch = 1;
+    // int64_t sq = 2048;
+    // int64_t skv = 2048;
+    // int64_t headDim = 128;
+    // int64_t headNum = 1;
+    // int64_t h = headNum * headDim;
+    int64_t B = 1;
+    int64_t H = 6;
+    int64_t N = 100;
+    int64_t M = 100;
+    int64_t K = 100;
+    int64_t D = 32;
+    std::vector<int64_t> qShape = {B, H, N, M, D};
+    std::vector<int64_t> k0Shape = {B, H, N, K, D};
+    std::vector<int64_t> k1Shape = {B, H, K, M, D};
+    std::vector<int64_t> v0Shape = {B, H, N, K, D};
+    std::vector<int64_t> v1Shape = {B, H, K, M, D};
+    std::vector<int64_t> attnShape = {B, H, N, M, K};
+    std::vector<int64_t> attentionOutShape = {B, H, N, M, D};
+    std::vector<int64_t> softmaxMaxShape = {B, H, N, M, 8};
+    std::vector<int64_t> softmaxSumShape = {B, H, N, M, 8};
+    float scaleValue = 1.0;
 
     void *qDeviceAddr = nullptr;
-    void *kDeviceAddr = nullptr;
-    void *vDeviceAddr = nullptr;
+    void *k0DeviceAddr = nullptr;
+    void *k1DeviceAddr = nullptr;
+    void *v0DeviceAddr = nullptr;
+    void *v1DeviceAddr = nullptr;
+    void *attnDeviceAddr = nullptr;
     void *attentionOutDeviceAddr = nullptr;
     void *softmaxMaxDeviceAddr = nullptr;
     void *softmaxSumDeviceAddr = nullptr;
 
     aclTensor *q = nullptr;
-    aclTensor *k = nullptr;
-    aclTensor *v = nullptr;
-    aclTensor *pse = nullptr;
-    aclTensor *dropMask = nullptr;
-    aclTensor *padding = nullptr;
+    aclTensor *k0 = nullptr;
+    aclTensor *k1 = nullptr;
+    aclTensor *v0 = nullptr;
+    aclTensor *v1 = nullptr;
     aclTensor *attenMask = nullptr;
-    aclIntArray *prefix = nullptr;
     aclTensor *softmaxMax = nullptr;
     aclTensor *softmaxSum = nullptr;
-    aclTensor *softmaxOut = nullptr;
     aclTensor *attentionOut = nullptr;
 
-    std::vector<float> attentionOutHostData(sq * batch * h, 0.0);
-    std::vector<float> softmaxMaxHostData(batch * headNum * sq * 8, 0.0);
-    std::vector<float> softmaxSumHostData(batch * headNum * sq * 8, 0.0);
+    std::vector<float> attentionOutHostData(B*H*N*M*D, 0.0);
+    std::vector<float> softmaxMaxHostData(B*H*N*M*8, 0.0);
+    std::vector<float> softmaxSumHostData(B*H*N*M*8, 0.0);
     uint64_t workspaceSize = 0;
     void *workspaceAddr = nullptr;
 
@@ -281,87 +300,111 @@ int main(int argc, char **argv)
     std::string qFilePath = currentPath + "query.bin";
     ret = CreateAclTensor(qFilePath, qShape, 2, &qDeviceAddr, aclDataType::ACL_FLOAT16, &q);
     CHECK_RET(ret == ACL_SUCCESS,
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
-    std::string kFilePath = currentPath + "key.bin";
-    ret = CreateAclTensor(kFilePath, kShape, 2, &kDeviceAddr, aclDataType::ACL_FLOAT16, &k);
+    std::string k0FilePath = currentPath + "key_0.bin";
+    ret = CreateAclTensor(k0FilePath, k0Shape, 2, &k0DeviceAddr, aclDataType::ACL_FLOAT16, &k0);
     CHECK_RET(ret == ACL_SUCCESS,
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
-    std::string vFilePath = currentPath + "value.bin";
-    ret = CreateAclTensor(vFilePath, vShape, 2, &vDeviceAddr, aclDataType::ACL_FLOAT16, &v);
+    std::string k1FilePath = currentPath + "key_1.bin";
+    ret = CreateAclTensor(k1FilePath, k1Shape, 2, &k1DeviceAddr, aclDataType::ACL_FLOAT16, &k1);
     CHECK_RET(ret == ACL_SUCCESS,
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+                  deviceId, &context, &stream);
+              return ret);
+
+    std::string v0FilePath = currentPath + "value_0.bin";
+    ret = CreateAclTensor(v0FilePath, v0Shape, 2, &v0DeviceAddr, aclDataType::ACL_FLOAT16, &v0);
+    CHECK_RET(ret == ACL_SUCCESS,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+                  deviceId, &context, &stream);
+              return ret);
+
+    std::string v1FilePath = currentPath + "value_1.bin";
+    ret = CreateAclTensor(v1FilePath, v0Shape, 2, &v0DeviceAddr, aclDataType::ACL_FLOAT16, &v1);
+    CHECK_RET(ret == ACL_SUCCESS,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+                  deviceId, &context, &stream);
+              return ret);
+
+    std::string attnFilePath = currentPath + "atten_mask.bin";
+    ret = CreateAclTensor(attnFilePath, attnShape, 1, &attnDeviceAddr, aclDataType::ACL_UINT8, &attenMask);
+    CHECK_RET(ret == ACL_SUCCESS,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
     ret = CreateAclTensor(attentionOutHostData, attentionOutShape, &attentionOutDeviceAddr, aclDataType::ACL_FLOAT16,
                           &attentionOut);
     CHECK_RET(ret == ACL_SUCCESS,
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
     ret = CreateAclTensor(softmaxMaxHostData, softmaxMaxShape, &softmaxMaxDeviceAddr, aclDataType::ACL_FLOAT,
                           &softmaxMax);
     CHECK_RET(ret == ACL_SUCCESS,
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
     ret = CreateAclTensor(softmaxSumHostData, softmaxSumShape, &softmaxSumDeviceAddr, aclDataType::ACL_FLOAT,
                           &softmaxSum);
     CHECK_RET(ret == ACL_SUCCESS,
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
     // 3. 调用CANN算子库API，需要修改为具体的Api名称
     aclOpExecutor *executor;
 
-    // 调用aclnnFlashAttentionScore第一段接口
-    ret = aclnnFlashAttentionScoreGetWorkspaceSize(
-        q, k, v, pse, dropMask, padding, attenMask, prefix, scaleValue, keepProb, preTokens, nextTokens, headNum,
-        layOut, innerPrecise, sparseMod, softmaxMax, softmaxSum, softmaxOut, attentionOut, &workspaceSize, &executor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGetWorkspaceSize failed. ERROR: %d\n", ret);
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+    // 调用aclnnFusedFloydAttention第一段接口
+    ret = aclnnFusedFloydAttentionGetWorkspaceSize(
+        q, k0, k1, v0, v1, attenMask, scaleValue, softmaxMax, softmaxSum, attentionOut, &workspaceSize, &executor);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFusedFloydAttentionGetWorkspaceSize failed. ERROR: %d\n", ret);
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
     // 根据第一段接口计算出的workspaceSize申请device内存
+    // LOG_PRINT("workspaceSize: %d\n", workspaceSize);
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret);
-            FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
-                deviceId, &context, &stream);
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+                  deviceId, &context, &stream);
             return ret);
     }
 
-    // 调用aclnnFlashAttentionScore第二段接口
-    ret = aclnnFlashAttentionScore(workspaceAddr, workspaceSize, executor, stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScore failed. ERROR: %d\n", ret);
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+    // 调用aclnnFusedFloydAttention第二段接口
+    ret = aclnnFusedFloydAttention(workspaceAddr, workspaceSize, executor, stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFusedFloydAttention failed. ERROR: %d\n", ret);
+              FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
     // 4. （固定写法）同步等待任务执行结束
     ret = aclrtSynchronizeStream(stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret);
-              FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-                  attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+               FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+                  v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
                   deviceId, &context, &stream);
               return ret);
 
@@ -376,8 +419,8 @@ int main(int argc, char **argv)
     SaveOutResult<float>(softmaxSumFileName, softmaxSumShape, &softmaxSumDeviceAddr);
 
     // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改; 释放device资源
-    FreeResource(q, k, v, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr,
-        attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
+    FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
+        v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
         deviceId, &context, &stream);
 
     return 0;

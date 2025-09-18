@@ -59,8 +59,8 @@ public:
 void FusedFloydAttentionEmptyInputTiling::GetTilingKeyAttentionScore4EmptyInput(uint32_t &tilingKey,
                                                                                 const gert::TilingContext *context)
 {
-    OPS_LOG_E_IF_NULL(context, context->GetInputDesc(KEY_INPUT_INDEX), return)
-    auto kernelType = context->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
+    OPS_LOG_E_IF_NULL(context, context->GetInputDesc(KEY0_INPUT_INDEX), return)
+    auto kernelType = context->GetInputDesc(KEY0_INPUT_INDEX)->GetDataType();
     if (kernelType == ge::DT_FLOAT16) {
         tilingKey = 90;
     } else if (kernelType == ge::DT_FLOAT) {
@@ -114,13 +114,13 @@ static ge::graphStatus CheckParams(const gert::TilingContext *context)
                     return ge::GRAPH_FAILED);
         OPS_ERR_IF((key1Shape != value1Shape), OPS_REPORT_VECTOR_INNER_ERR(context, "key1 or value1 shape is invalid"),
                     return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(0) != keyShape0.GetDim(0)),
+        OPS_ERR_IF((queryShape.GetDim(0) != key0Shape.GetDim(0)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(1) != keyShape0.GetDim(1)),
+        OPS_ERR_IF((queryShape.GetDim(1) != key0Shape.GetDim(1)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(0) != keyShape1.GetDim(0)),
+        OPS_ERR_IF((queryShape.GetDim(0) != key1Shape.GetDim(0)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(1) != keyShape1.GetDim(1)),
+        OPS_ERR_IF((queryShape.GetDim(1) != key1Shape.GetDim(1)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
         // } else {
         //     OPS_LOG_W(context, "invalid input_layout[%s].", inputLayout);

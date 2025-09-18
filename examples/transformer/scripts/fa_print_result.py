@@ -28,6 +28,22 @@ def show():
 
         attention_out = np.fromfile('attentionOut.bin', dtype=np.float16)
         print('attentionOut: ', attention_out)
+        # softmax_max = np.fromfile('softmaxMax.bin', dtype=np.float32)
+        # print('softmaxMax: ', softmax_max)
+
+        # softmax_sum = np.fromfile('softmaxSum.bin', dtype=np.float32)
+        # print('softmaxSum: ', softmax_sum)
+
+        # attention_out = np.fromfile('attentionOut.bin', dtype=np.float16)
+        # print("attention_out's shape: ", attention_out.shape)
+        attention_out_raw = np.fromfile('attn.bin', dtype=np.float16)
+        print('attn result: ', attention_out_raw)
+        absolute_errors = np.abs(attention_out - attention_out_raw)
+
+        # # 计算平均绝对误差
+        mae = np.mean(absolute_errors)
+        print("attn0 and attn2 mae: ", mae)
+        print("Compute Finished!")
     elif case_name == 'test_fused_floyd_attention':
         print("The result from fused_floyd_attention!")
     else:

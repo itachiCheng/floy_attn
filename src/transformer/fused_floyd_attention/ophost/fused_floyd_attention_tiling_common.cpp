@@ -17,14 +17,14 @@
 
 namespace optiling {
 
-uint32_t CalcTschBlockDim(uint32_t sliceNum, uint32_t aicCoreNum, uint32_t aivCoreNum)
-{
-    uint32_t ration;
-    if (aicCoreNum == 0 || aivCoreNum == 0 || aicCoreNum > aivCoreNum) {
-        return sliceNum;
-    }
-    ration = aivCoreNum / aicCoreNum;
-    return (sliceNum + (ration - 1)) / ration;
-}
+// uint32_t CalcTschBlockDim(uint32_t sliceNum, uint32_t aicCoreNum, uint32_t aivCoreNum)
+// {
+//     uint32_t ration;
+//     if (aicCoreNum == 0 || aivCoreNum == 0 || aicCoreNum > aivCoreNum) {
+//         return sliceNum;
+//     }
+//     ration = aivCoreNum / aicCoreNum;
+//     return (sliceNum + (ration - 1)) / ration;
+// }
 
 } // namespace optiling

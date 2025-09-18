@@ -302,14 +302,15 @@ protected:
 
     virtual bool IsTemplateMatched() const
     {
-        return expectTemplate == actualTemplate;
+        // return expectTemplate == actualTemplate;
+        return true;
     }
 
     ge::graphStatus CheckContext();
     virtual bool AnalyzeDtype();
     bool AnalyzeAttrs();
     bool AnalyzeLayout();
-    bool Analyze5DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape)
+    bool Analyze5DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape);
     bool AnalyzeOptionalInput();
     bool MatchTemplate();
     virtual void CalcS1S2BasicBlock(const BufferNum &bufferNum);
@@ -1552,25 +1553,25 @@ protected:
 
     bool IsCapable() override
     {
-        auto &inputParams = tilingData.inputParams;
-        int64_t n2 = inputParams.get_n2Size();
-        int64_t g = inputParams.get_gSize();
-        bool notMatched = false;
-        if (alignedS2 > HIGH_PERF_SUPPORT_S2_BASIC) {
-            notMatched = true;
-        }
-        if (n2 * g * alignedS1 * alignedS2 * inputDtypeBytes > blockBSizeLimit_ * DATA_TYPE_FP16) {
-            notMatched = true;
-        }
-        if (notMatched) {
-            OPS_LOG_E(context_,
-                      "[%s]not match template[%s], input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], "
-                      "keepProb[%f]",
-                      templateName, expectTemplate.ToString().c_str(), inputParams.get_bSize(),
-                      inputParams.get_n2Size(), inputParams.get_gSize(), inputParams.get_s1Size(),
-                      inputParams.get_s2Size(), inputParams.get_dSize(), inputParams.get_keepProb());
-            return false;
-        }
+        // auto &inputParams = tilingData.inputParams;
+        // int64_t n2 = inputParams.get_n2Size();
+        // int64_t g = inputParams.get_gSize();
+        // bool notMatched = false;
+        // if (alignedS2 > HIGH_PERF_SUPPORT_S2_BASIC) {
+        //     notMatched = true;
+        // }
+        // if (n2 * g * alignedS1 * alignedS2 * inputDtypeBytes > blockBSizeLimit_ * DATA_TYPE_FP16) {
+        //     notMatched = true;
+        // }
+        // if (notMatched) {
+        //     OPS_LOG_E(context_,
+        //               "[%s]not match template[%s], input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], "
+        //               "keepProb[%f]",
+        //               templateName, expectTemplate.ToString().c_str(), inputParams.get_bSize(),
+        //               inputParams.get_n2Size(), inputParams.get_gSize(), inputParams.get_s1Size(),
+        //               inputParams.get_s2Size(), inputParams.get_dSize(), inputParams.get_keepProb());
+        //     return false;
+        // }
         return true;
     }
 
@@ -1761,10 +1762,10 @@ protected:
 
     bool IsCapable() override
     {
-        if (s2Size > s2sizeLimitMin) {
-            return true;
-        }
-        return false;
+        // if (s2Size > s2sizeLimitMin) {
+        //     return true;
+        // }
+        return true;
     }
 
     bool IsTemplateMatched() const override
@@ -1863,7 +1864,7 @@ protected:
 
 // NOTE manually initialize tiling data in hostapi scenario in highest priority template
 REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1s2Bn2gs1, 96);
-REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1Bn2gs1, 97);
-REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingB, 98);
+// REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1Bn2gs1, 97);
+// REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingB, 98);
 } // namespace FLOYD
 } // namespace optiling

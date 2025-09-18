@@ -99,7 +99,7 @@ FusedFloydAttention(const aclTensor *query, const aclTensor *key0, const aclTens
                            OP_ATTR(static_cast<float>(scaleValue)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FusedFloydAttention InferShape failed.");
-        return {nullptr, nullptr, nullptr, nullptr};
+        return {nullptr, nullptr, nullptr};
     }
 
     ADD_TO_LAUNCHER_LIST_AICORE(FusedFloydAttention,
