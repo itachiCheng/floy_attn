@@ -150,11 +150,9 @@ using namespace AscendC;
 #endif
 
 extern "C" __global__ __aicore__ void
-fused_floyd_attention(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pse,
-                      __gm__ uint8_t *dropMask, __gm__ uint8_t *paddingMask, __gm__ uint8_t *attenMask,
-                      __gm__ uint8_t *prefix, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv,
-                      __gm__ uint8_t *qStartIdx, __gm__ uint8_t *kvStartIdx, __gm__ uint8_t *softmaxMax,
-                      __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut, __gm__ uint8_t *attentionOut,
+fused_floyd_attention(__gm__ uint8_t *query, __gm__ uint8_t *key0, __gm__ uint8_t *key1, __gm__ uint8_t *value0, 
+                      __gm__ uint8_t *value1, __gm__ uint8_t *attenMask, __gm__ uint8_t *softmaxMax,
+                      __gm__ uint8_t *softmaxSum, __gm__ uint8_t *attentionOut,
                       __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
     TPipe tPipe;
