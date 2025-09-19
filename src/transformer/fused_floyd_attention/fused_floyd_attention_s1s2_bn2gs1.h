@@ -115,10 +115,8 @@ public:
     modeTypemm2 bmm2;
 
 protected:
-    __aicore__ inline void InitInput(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
-                                     __gm__ uint8_t *pse, __gm__ uint8_t *dropMask, __gm__ uint8_t *paddingMask,
-                                     __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask, __gm__ uint8_t *softmaxMax,
-                                     __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut,
+    __aicore__ inline void InitInput(__gm__ uint8_t *query, __gm__ uint8_t *key0, __gm__ uint8_t *key1 , __gm__ uint8_t *value0,
+                                     __gm__ uint8_t *value1, __gm__ uint8_t *attenMask, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
                                      __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
                                      const FusedFloydAttentionGeneralTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void WaitBmm1Result(SplitExtraInfo &extraInfo);
@@ -163,7 +161,7 @@ protected:
     __aicore__ inline void SoftmaxDataCopyOut(SplitExtraInfo &extraInfo, int64_t s1oIdx);
 
     // sparse 用函数
-    __aicore__ inline void GetS1LoopRange(int64_t &multiCoreInnerOffset, int64_t &multiCoreInnerLimit);
+    // __aicore__ inline void GetS1LoopRange(int64_t &multiCoreInnerOffset, int64_t &multiCoreInnerLimit);
     __aicore__ inline void GetS2LoopRange(bool useNext, bool lastNotPair);
 
     uint32_t s1BaseSize;
@@ -298,7 +296,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
                                                    const FusedFloydAttentionGeneralTilingData *__restrict tiling,
                                                    TPipe *tPipe)
 {
-    this->InitInput(query, key, value, attenMask, softmaxMax, softmaxSum,
+    this->InitInput(query, key0, key1, value0, value1, attenMask, softmaxMax, softmaxSum,
                     softmaxOut, attentionOut, workspace, tiling, tPipe); // gm设置
 
 }
