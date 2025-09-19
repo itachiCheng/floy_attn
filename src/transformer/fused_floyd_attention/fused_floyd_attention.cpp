@@ -72,7 +72,6 @@ using namespace AscendC;
         COPY_TILING_DATA(tiling);                                                                                      \
         templateClass<__VA_ARGS__> op;                                                                                 \
         REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling);                     \
-        std::cout << "tilingData is "<<tilingData->s1Size;\
         op.Init(query, key0, key1, value0, value1, attenMask, softmaxMax, softmaxSum,              \
                 attentionOut, user, tilingData, &tPipe);                                                   \
         op.Process();                                                                                                  \
