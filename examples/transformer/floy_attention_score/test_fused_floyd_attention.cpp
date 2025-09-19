@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 #include "acl/acl.h"
 // To Fix
-#include "/data/zmmVol2/c00611613/floy_attn-master/src/transformer/fused_floyd_attention/ophost/aclnn_fused_floyd_attention.h"
+#include "/data/Fused_Floyd_Attn_AscendC/cq/floy_attn/src/transformer/fused_floyd_attention/ophost/aclnn_fused_floyd_attention.h"
 
 
 #define CHECK_RET(cond, return_expr)                                                                                   \
