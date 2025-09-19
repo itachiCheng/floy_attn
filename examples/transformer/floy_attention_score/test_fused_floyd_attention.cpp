@@ -285,9 +285,9 @@ int main(int argc, char **argv)
     aclTensor *softmaxSum = nullptr;
     aclTensor *attentionOut = nullptr;
 
-    std::vector<float> attentionOutHostData(B*H*N*M*D, 0.0);
-    std::vector<float> softmaxMaxHostData(B*H*N*M*8, 0.0);
-    std::vector<float> softmaxSumHostData(B*H*N*M*8, 0.0);
+    std::vector<float> attentionOutHostData(B*H*N*M*D, 1.0);
+    std::vector<float> softmaxMaxHostData(B*H*N*M*8, 2.0);
+    std::vector<float> softmaxSumHostData(B*H*N*M*8, 3.0);
     uint64_t workspaceSize = 0;
     void *workspaceAddr = nullptr;
 
