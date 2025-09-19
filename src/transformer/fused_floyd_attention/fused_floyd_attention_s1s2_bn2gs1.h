@@ -420,6 +420,21 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
           typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
+__aicore__ inline void
+FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
+                              enableL1Reuse>::SetTiling(const FlashAttentionScoreGeneralTilingData
+                                                            *__restrict tilingData)
+{
+    // copy base params
+    this->tilingData = tilingData;
+    this->s1BaseSize = this->tilingData->coreParams.s1BaseSize;
+    this->s2BaseSize = this->tilingData->coreParams.s2BaseSize;
+    this->dSize = this->tilingData->inputParams.dSize;
+    this->dSizeAlign16 = CeilDiv(this->tilingData->inputParams.dSize, 16) * 16;
+};
+
+template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
+          typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
 __aicore__ inline void FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T,
                                                      isBasicBlock, bmm1Format, enableL1Reuse>::InitBuffer()
 {
