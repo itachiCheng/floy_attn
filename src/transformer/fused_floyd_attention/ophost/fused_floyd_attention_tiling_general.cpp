@@ -486,7 +486,12 @@ ge::graphStatus FusedFloydAttentionTilingBase::CheckContext()
                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
-
+void FusedFloydAttentionTilingBase::SetSparseTilingInfo(SparseEnum &sparseType)
+{
+    auto &inputParams = tilingData.inputParams;
+    inputParams.set_attenMaskCompressMode(attenMaskCompressMode);
+    inputParams.set_sparseType(static_cast<uint8_t>(sparseType));
+}
 
 ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
 {
@@ -728,6 +733,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::DoOpTiling()
     }
 
     SparseEnum sparseType = SparseEnum::ALL;
+    SetSparseTilingInfo(sparseType);
     inputParams.set_implMode(implMode);
     if (!isSparseValidSizeAligned) {
         s1SparseValidSize = preTokens;
