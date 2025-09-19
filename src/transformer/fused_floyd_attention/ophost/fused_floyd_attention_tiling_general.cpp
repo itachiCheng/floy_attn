@@ -527,7 +527,6 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
     inputParams.set_n2Size(n2Size);
     inputParams.set_gSize(gSize);
     inputParams.set_s1Size(s1Size);
-    std::cout << "s1Size2" << s1Size << std::endl;
     inputParams.set_s2Size(s2Size);
     inputParams.set_dSize(dSize);
     inputParams.set_scaleValue(scaleValue);
@@ -975,6 +974,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::PostTiling()
 
         int64_t shapeTotalSize = inputParams.get_bSize() * inputParams.get_n2Size() * inputParams.get_gSize() *
                                  inputParams.get_s1Size() * inputParams.get_s2Size();
+        std::cout << "shapeTotalSize: " << shapeTotalSize << std::endl;
         auto layoutType = tilingData.inputParams.get_layoutType();
         if (layoutType == LAYOUT_TND) {
             for (int64_t i = 0; i < bSize; i++) {
