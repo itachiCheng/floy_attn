@@ -694,9 +694,11 @@ bool FusedFloydAttentionTilingBase::Analyze4DimLayout(const gert::Shape &querySh
     // DSize = queryShape.GetDim(4);
 
     bSize = queryShape.GetDim(0);
+    
     n2Size = key0Shape.GetDim(1);
     gSize = queryShape.GetDim(1) / n2Size;
     s1Size = queryShape.GetDim(2); // 2: S1 idx
+    std::cout << "s1Size" << s1Size << std::endl;
     s2Size = key0Shape.GetDim(2); // 2: S2 idx
     dSize = queryShape.GetDim(3); // 3: D idx
     s1StrideSize = dSize;
