@@ -96,7 +96,7 @@ public:
             return ret;
         }
         context_->SetTilingKey(GetTilingKey());
-        std::cout << "[0915]The TilingKey is " << GetTilingKey() << endl;
+        std::cout << "[0915cq]The TilingKey is " << GetTilingKey() << endl;
         DumpTilingInfo();
         return ge::GRAPH_SUCCESS;
     }

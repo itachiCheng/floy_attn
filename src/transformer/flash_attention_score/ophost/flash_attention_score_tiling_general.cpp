@@ -467,7 +467,6 @@ ge::graphStatus FlashAttentionScoreTilingBase::GetPlatformInfo()
     }
     OPS_LOG_I(context_, "get platform from compileInfo. aivNum(%u) aicNum(%u) ubSize(%lu) l1Size(%lu) l0cSize(%lu).",
               aivNum, aicNum, aicoreParams_.ubSize, aicoreParams_.l1Size, aicoreParams_.l0cSize);
-    std::cout << "get platform from compileInfo" << aicoreParams_.ubSize << std::endl;
     return ge::GRAPH_SUCCESS;
 }
 

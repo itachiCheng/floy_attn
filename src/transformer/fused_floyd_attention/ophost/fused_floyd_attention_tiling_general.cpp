@@ -534,7 +534,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
     inputParams.set_pseType(static_cast<uint32_t>(pseType));
     OPS_LOG_D(context_, "input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], scaleValue[%f]",
     bSize, n2Size, gSize, s1Size, s2Size, dSize, scaleValue);
-
+    std::cout << "input params: bn2gs1s2d" << bSize << ' ' << n2Size << std::endl;
     return ge::GRAPH_SUCCESS;
 }
 
