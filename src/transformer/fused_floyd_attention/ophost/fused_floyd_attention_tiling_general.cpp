@@ -302,15 +302,15 @@ protected:
 
     virtual bool IsTemplateMatched() const
     {
-        // return expectTemplate == actualTemplate;
-        return true;
+        return expectTemplate == actualTemplate;
     }
 
     ge::graphStatus CheckContext();
     virtual bool AnalyzeDtype();
     bool AnalyzeAttrs();
     bool AnalyzeLayout();
-    bool Analyze5DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape);
+    // bool Analyze5DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape);
+    bool Analyze4DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape);
     bool AnalyzeOptionalInput();
     bool MatchTemplate();
     virtual void CalcS1S2BasicBlock(const BufferNum &bufferNum);
@@ -353,6 +353,14 @@ protected:
     CubeInputSourceEnum tilingKeyBmm1Source = CubeInputSourceEnum::GM;
     CubeInputSourceEnum tilingKeyBmm2Source = CubeInputSourceEnum::GM;
 
+    // FloyD
+    int64_t BSize;
+    int64_t HSize;
+    int64_t NSize;
+    int64_t MSize;
+    int64_t KSize;
+    int64_t DSize;
+
     int64_t bSize;
     int64_t gSize;
     int64_t dSize;
@@ -390,6 +398,7 @@ protected:
     uint8_t attenMaskExistFlag;
     uint8_t dropMaskExistFlag;
 
+    int64_t alignedN2;
     int64_t alignedS1;
     int64_t alignedS2;
     int64_t alignedD;
@@ -489,6 +498,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
     OPS_ERR_IF(!AnalyzeAttrs() || !AnalyzeDtype() || !AnalyzeLayout() || !AnalyzeOptionalInput(),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to analyze context info."), return ge::GRAPH_FAILED);
 
+    alignedN2 = AlignUp(n2Size, FRACTAL_NUM);
     alignedS1 = AlignUp(s1Size, FRACTAL_NUM);
     alignedS2 = AlignUp(s2Size, FRACTAL_NUM);
     alignedD = AlignUp(dSize, FRACTAL_NUM);
@@ -501,18 +511,23 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
         return ge::GRAPH_FAILED);
 
     auto &inputParams = tilingData.inputParams;
+    inputParams.set_BSize(BSize);
+    inputParams.set_HSize(HSize);
+    inputParams.set_NSize(NSize);
+    inputParams.set_MSize(MSize);
+    inputParams.set_KSize(KSize);
+
     inputParams.set_bSize(bSize);
     inputParams.set_n2Size(n2Size);
     inputParams.set_gSize(gSize);
     inputParams.set_s1Size(s1Size);
     inputParams.set_s2Size(s2Size);
     inputParams.set_dSize(dSize);
-    inputParams.set_keepProb(keepProb);
     inputParams.set_scaleValue(scaleValue);
     inputParams.set_alignedS2(alignedS2);
     inputParams.set_pseType(static_cast<uint32_t>(pseType));
-    OPS_LOG_D(context_, "input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], keepProb[%f], scaleValue[%f],"
-              "pseType:%ld.", bSize, n2Size, gSize, s1Size, s2Size, dSize, keepProb, scaleValue, pseType);
+    OPS_LOG_D(context_, "input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], scaleValue[%f]",
+    bSize, n2Size, gSize, s1Size, s2Size, dSize, scaleValue);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -569,6 +584,7 @@ void FusedFloydAttentionTilingBase::Reset()
     dropMaskExistFlag = 0;
     isHighPercision = true;
 
+    alignedN2 = 0LL;
     alignedS1 = 0LL;
     alignedS2 = 0LL;
     alignedD = 0LL;
@@ -635,6 +651,7 @@ bool FusedFloydAttentionTilingBase::AnalyzeAttrs()
     implMode = ImplMode::AA_HIGH_PRECISION;
     OPS_LOG_D(context_, "attrs: scale_value[%f].",
               scaleValue);
+    // isHighPercision = true; // use default value
     return true;
 }
 
@@ -646,9 +663,9 @@ bool FusedFloydAttentionTilingBase::AnalyzeLayout()
 
     // size_t layoutLen = strlen(inputLayout);
     // OPS_LOG_D(context_, "Get input_layout [%s].", inputLayout);
-    OPS_ERR_IF(queryShape.GetDimNum() != 5 || key0Shape.GetDimNum() != 5 || key1Shape.GetDimNum() != 5,
+    OPS_ERR_IF(queryShape.GetDimNum() != 4 || key0Shape.GetDimNum() != 4 || key1Shape.GetDimNum() != 4,
                OPS_REPORT_VECTOR_INNER_ERR(opName, "Invalid layout, not 5 dim"), return false);
-    OPS_ERR_IF(!Analyze5DimLayout(queryShape, key0Shape, key1Shape),
+    OPS_ERR_IF(!Analyze4DimLayout(queryShape, key0Shape, key1Shape),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "Get unsupported layout: 5 dim"), return false);
     // OPS_ERR_IF(gSize == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "gSize is zero."), return false);
     // OPS_ERR_IF(n2Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "n2Size is zero."), return false);
@@ -660,21 +677,39 @@ bool FusedFloydAttentionTilingBase::AnalyzeLayout()
     return true;
 }
 
-bool FusedFloydAttentionTilingBase::Analyze5DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape)
+bool FusedFloydAttentionTilingBase::Analyze4DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape)
 {
-    // ToDo
-    gSize = 1;
+    // TODO
+    // BSize = queryShape.GetDim(0);
+    // HSize = queryShape.GetDim(1);
+    // NSize = queryShape.GetDim(2);
+    // KSize = key0Shape.GetDim(3);
+    // MSize = key1Shape.GetDim(3);
+    // DSize = queryShape.GetDim(4);
+
+    bSize = queryShape.GetDim(0);
+    n2Size = key0Shape.GetDim(1);
+    gSize = queryShape.GetDim(1) / n2Size;
+    s1Size = queryShape.GetDim(2); // 2: S1 idx
+    s2Size = key0Shape.GetDim(2); // 2: S2 idx
+    dSize = queryShape.GetDim(3); // 3: D idx
+    s1StrideSize = dSize;
+    s2StrideSize = dSize;
+    tilingData.inputParams.set_layoutType(LAYOUT_BNSD);
+    tilingKeyLayout = LayoutType::LAYOUT_BNSD;
     return true;
+
 }
 
 bool FusedFloydAttentionTilingBase::AnalyzeOptionalInput()
 {
     auto attenMaskInput = context_->GetOptionalInputDesc(ATTENTION_MASK_INPUT_INDEX);
     auto attenMaskShape = context_->GetOptionalInputShape(ATTENTION_MASK_INPUT_INDEX);
-
+    tilingData.inputParams.set_attenMaskDataType(1);
     attenMaskExistFlag = 1;
-    OPS_LOG_D(context_, "attenMaskExistFlag: %d.", pseExistFlag,
-              attenMaskExistFlag);
+    AttenMaskShapeType attenMaskShapeType = ATTEN_B_N2_G_S1_S2;
+    tilingData.inputParams.set_attenMaskShapeType(attenMaskShapeType);
+    OPS_LOG_D(context_, "attenMaskExistFlag: %d.", attenMaskExistFlag);
     return true;
 }
 
@@ -1553,25 +1588,25 @@ protected:
 
     bool IsCapable() override
     {
-        // auto &inputParams = tilingData.inputParams;
-        // int64_t n2 = inputParams.get_n2Size();
-        // int64_t g = inputParams.get_gSize();
-        // bool notMatched = false;
-        // if (alignedS2 > HIGH_PERF_SUPPORT_S2_BASIC) {
-        //     notMatched = true;
-        // }
-        // if (n2 * g * alignedS1 * alignedS2 * inputDtypeBytes > blockBSizeLimit_ * DATA_TYPE_FP16) {
-        //     notMatched = true;
-        // }
-        // if (notMatched) {
-        //     OPS_LOG_E(context_,
-        //               "[%s]not match template[%s], input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], "
-        //               "keepProb[%f]",
-        //               templateName, expectTemplate.ToString().c_str(), inputParams.get_bSize(),
-        //               inputParams.get_n2Size(), inputParams.get_gSize(), inputParams.get_s1Size(),
-        //               inputParams.get_s2Size(), inputParams.get_dSize(), inputParams.get_keepProb());
-        //     return false;
-        // }
+        auto &inputParams = tilingData.inputParams;
+        int64_t n2 = inputParams.get_n2Size();
+        int64_t g = inputParams.get_gSize();
+        bool notMatched = false;
+        if (alignedS2 > HIGH_PERF_SUPPORT_S2_BASIC) {
+            notMatched = true;
+        }
+        if (n2 * g * alignedS1 * alignedS2 * inputDtypeBytes > blockBSizeLimit_ * DATA_TYPE_FP16) {
+            notMatched = true;
+        }
+        if (notMatched) {
+            OPS_LOG_E(context_,
+                      "[%s]not match template[%s], input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], "
+                      "keepProb[%f]",
+                      templateName, expectTemplate.ToString().c_str(), inputParams.get_bSize(),
+                      inputParams.get_n2Size(), inputParams.get_gSize(), inputParams.get_s1Size(),
+                      inputParams.get_s2Size(), inputParams.get_dSize(), inputParams.get_keepProb());
+            return false;
+        }
         return true;
     }
 
@@ -1762,10 +1797,10 @@ protected:
 
     bool IsCapable() override
     {
-        // if (s2Size > s2sizeLimitMin) {
-        //     return true;
-        // }
-        return true;
+        if (s2Size > s2sizeLimitMin) {
+            return true;
+        }
+        return false;
     }
 
     bool IsTemplateMatched() const override
@@ -1864,7 +1899,7 @@ protected:
 
 // NOTE manually initialize tiling data in hostapi scenario in highest priority template
 REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1s2Bn2gs1, 96);
-// REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1Bn2gs1, 97);
-// REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingB, 98);
+REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1Bn2gs1, 97);
+REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingB, 98);
 } // namespace FLOYD
 } // namespace optiling

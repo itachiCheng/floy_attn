@@ -91,41 +91,22 @@ static ge::graphStatus CheckParams(const gert::TilingContext *context)
         auto &key1Shape = context->GetInputShape(KEY1_INPUT_INDEX)->GetStorageShape();
         auto &value0Shape = context->GetInputShape(VALUE0_INPUT_INDEX)->GetStorageShape();
         auto &value1Shape = context->GetInputShape(VALUE1_INPUT_INDEX)->GetStorageShape();
-
-        // if (strlen(inputLayout) == 3) { // 3: BSH or SBH
-        //     OPS_ERR_IF((keyShape != valueShape), OPS_REPORT_VECTOR_INNER_ERR(context, "key or value shape is invalid"),
-        //                return ge::GRAPH_FAILED);
-        //     if (inputLayout[0] == 'B') {
-        //         // layout is BSH
-        //         OPS_ERR_IF((queryShape.GetDim(0) != keyShape.GetDim(0)),
-        //                    OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"),
-        //                    return ge::GRAPH_FAILED);
-        //     } else {
-        //         if (inputLayout[0] == 'T') { // TND  N1 != N2
-        //             return ge::SUCCESS;
-        //         }
-        //         // layout is SBH
-        //         OPS_ERR_IF((queryShape.GetDim(1) != keyShape.GetDim(1)),
-        //                    OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"),
-        //                    return ge::GRAPH_FAILED);
-        //     }
-        // } else if (strlen(inputLayout) == 4) { // 4: layout is BNSD or BSND
+        // 默认五维度输入，其中query为[BHNMD], key0为[BHNKD]， key1为[BHKMD]
         OPS_ERR_IF((key0Shape != value0Shape), OPS_REPORT_VECTOR_INNER_ERR(context, "key0 or value0 shape is invalid"),
                     return ge::GRAPH_FAILED);
+        
         OPS_ERR_IF((key1Shape != value1Shape), OPS_REPORT_VECTOR_INNER_ERR(context, "key1 or value1 shape is invalid"),
                     return ge::GRAPH_FAILED);
+        
         OPS_ERR_IF((queryShape.GetDim(0) != key0Shape.GetDim(0)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
         OPS_ERR_IF((queryShape.GetDim(1) != key0Shape.GetDim(1)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
         OPS_ERR_IF((queryShape.GetDim(0) != key1Shape.GetDim(0)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(1) != key1Shape.GetDim(1)),
+        OPS_ERR_IF((queryShape.GetDim(2) != key1Shape.GetDim(2)),
                     OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        // } else {
-        //     OPS_LOG_W(context, "invalid input_layout[%s].", inputLayout);
-        //     return ge::GRAPH_FAILED;
-        // }
+
         return ge::SUCCESS;
     }
     OPS_LOG_W(context, "fail to get shape or attr from context");
@@ -155,6 +136,7 @@ static bool IsEmptyInput(gert::TilingContext *context)
 
     int64_t softmaxSumShapeSize = softmaxSumShape->GetStorageShape().GetShapeSize();
 
+    // 空tensor的处理逻辑，可以暂时不考虑
     if ((queryShapeSize == 0 || key0ShapeSize == 0 || key1ShapeSize == 0) && (attentionOutShapeSize != 0 || softmaxSumShapeSize != 0)) {
         /* 以 MIN_COPY_UINT_SIZE 为 32Byte说明, blocks为数据的块数, blocks与coreNum存在三种关系:
           (1) blocks % coreNum == 0
@@ -325,7 +307,6 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForFusedFloydAttention(gert::Tilin
 
 IMPL_OP(FusedFloydAttention)
     .Tiling(TilingFusedFloydAttention)
-    .TilingInputsDataDependency({7, 8, 9, 10, 11})
     .TilingParse<FusedFloydAttentionCompileInfo>(TilingPrepareForFusedFloydAttention);  // 向框架注册入口函数
 
 } // namespace optiling
