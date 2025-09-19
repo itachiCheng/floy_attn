@@ -32,6 +32,10 @@ src:
               - tests/ut/ops_test/src/transformer/flash_attention
             options:
               - flash_attention
+    fused_floyd_attention:
+      module: True
+      src:
+        - src/transformer/fused_floyd_attention
   utils:
     module: True
     src:
