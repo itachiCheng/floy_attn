@@ -232,7 +232,7 @@ int main(int argc, char **argv)
     // query、key、value对应的shape值，并重新gen data，再执行
     // std::ifstream file("../scripts/layout.bin");
     // To Fix
-    std::ifstream file("/data/zmmVol2/c00611613/floy_attn-master/examples/transformer/scripts/layout.bin");
+    std::ifstream file("/data/Fused_Floyd_Attn_AscendC/cq/floy_attn/examples/transformer/scripts/layout.bin");
 
     if (!file.is_open()) {
         std::cerr << "无法打开文件 layout.bin" << std::endl;
