@@ -422,7 +422,7 @@ template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool ha
           typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
 __aicore__ inline void
 FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
-                              enableL1Reuse>::SetTiling(const FlashAttentionScoreGeneralTilingData
+                              enableL1Reuse>::SetTiling(const FusedFloydAttentionGeneralTilingData
                                                             *__restrict tilingData)
 {
     // copy base params
