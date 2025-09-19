@@ -45,7 +45,14 @@ def show():
         print("attn0 and attn2 mae: ", mae)
         print("Compute Finished!")
     elif case_name == 'test_fused_floyd_attention':
-        print("The result from fused_floyd_attention!")
+        softmax_max = np.fromfile('softmaxMax.bin', dtype=np.float32)
+        print('softmaxMax: ', softmax_max)
+
+        softmax_sum = np.fromfile('softmaxSum.bin', dtype=np.float32)
+        print('softmaxSum: ', softmax_sum)
+
+        attention_out = np.fromfile('attentionOut.bin', dtype=np.float16)
+        print('attentionOut: ', attention_out)
     else:
         dq = np.fromfile('dq.bin', dtype=np.float16)
         print('dq: ', dq)
