@@ -81,12 +81,12 @@ ge::graphStatus InferShapeFusedFloydAttention(gert::InferShapeContext *context)
     // softmaxMax, fp32: (B, N, S, 8)
     gert::Shape *softmaxMaxShape = context->GetOutputShape(0);
     OPS_LOG_E_IF_NULL(context, softmaxMaxShape, return ge::GRAPH_FAILED)
-    softmaxMaxShape->SetDimNum(5);
+    softmaxMaxShape->SetDimNum(4);
     softmaxMaxShape->SetDim(0, queryShape->GetDim(0)); // B
     softmaxMaxShape->SetDim(1, queryShape->GetDim(1)); // H
     softmaxMaxShape->SetDim(2, queryShape->GetDim(2)); // N
-    softmaxMaxShape->SetDim(3, queryShape->GetDim(3)); // M
-    softmaxMaxShape->SetDim(4, 8);
+    // softmaxMaxShape->SetDim(3, queryShape->GetDim(3)); // M
+    softmaxMaxShape->SetDim(3, 8);
 
     // if (inputLayoutStr == "TND") {
     //     softmaxMaxShape->SetDimNum(DIM_NUM_3);
