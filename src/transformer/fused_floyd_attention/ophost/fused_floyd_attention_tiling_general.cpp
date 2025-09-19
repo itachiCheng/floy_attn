@@ -527,6 +527,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
     inputParams.set_n2Size(n2Size);
     inputParams.set_gSize(gSize);
     inputParams.set_s1Size(s1Size);
+    std::cout << "s1Size2" << s1Size << std::endl;
     inputParams.set_s2Size(s2Size);
     inputParams.set_dSize(dSize);
     inputParams.set_scaleValue(scaleValue);
