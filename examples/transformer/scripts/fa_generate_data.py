@@ -99,11 +99,11 @@ if case_name == 'test_flash_attention_score':
     print("Generate Data Finished!")
 
 elif case_name == 'test_fused_floyd_attention':
-    B = 1
-    H = 6
-    N = 100
-    M = 100
-    K = 100
+    B = 2
+    H = 3
+    N = 2
+    M = 1152
+    K = 1152
     D = 32
     query = np.random.uniform(-0.1, 0.1, (B, H, N, M, D)) # BHNMD
     key_0 = np.random.uniform(-0.1, 0.1, (B, H, N, K, D)) # BHNKD

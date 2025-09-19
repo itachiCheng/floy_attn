@@ -248,11 +248,11 @@ int main(int argc, char **argv)
     // int64_t headDim = 128;
     // int64_t headNum = 1;
     // int64_t h = headNum * headDim;
-    int64_t B = 1;
-    int64_t H = 6;
-    int64_t N = 100;
-    int64_t M = 100;
-    int64_t K = 100;
+    int64_t B = 2;
+    int64_t H = 3;
+    int64_t N = 2;
+    int64_t M = 1152;
+    int64_t K = 1152;
     int64_t D = 32;
     std::vector<int64_t> qShape = {B, H, N, M, D};
     std::vector<int64_t> k0Shape = {B, H, N, K, D};
