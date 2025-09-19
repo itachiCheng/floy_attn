@@ -968,24 +968,23 @@ ge::graphStatus FusedFloydAttentionTilingBase::PostTiling()
     context_->SetBlockDim(blockDim);
     auto &inputParams = tilingData.inputParams;
     size_t *workspaces = context_->GetWorkspaceSizes(1);
-    if (inputParams.get_needDropMaskOp() == 1) {
-        blockDim = optiling::CalcTschBlockDim(aivNum, aicNum, aivNum);
-        context_->SetBlockDim(blockDim);
+    // if (inputParams.get_needDropMaskOp() == 1) {
+    //     blockDim = optiling::CalcTschBlockDim(aivNum, aicNum, aivNum);
+    //     context_->SetBlockDim(blockDim);
 
-        int64_t shapeTotalSize = inputParams.get_bSize() * inputParams.get_n2Size() * inputParams.get_gSize() *
-                                 inputParams.get_s1Size() * inputParams.get_s2Size();
-        std::cout << "shapeTotalSize: " << shapeTotalSize << std::endl;
-        auto layoutType = tilingData.inputParams.get_layoutType();
-        if (layoutType == LAYOUT_TND) {
-            for (int64_t i = 0; i < bSize; i++) {
-                dropTotalSize += (actualSeqLenData[i] * actualSeqLenKvData[i]);
-            }
-            shapeTotalSize = inputParams.get_n2Size() * inputParams.get_gSize() * dropTotalSize;
-        }
-        shapeTotalSize = AlignUp(shapeTotalSize, GM_ALIGN);
-        workspaces[0] += static_cast<size_t>(shapeTotalSize);
-    }
-
+    //     int64_t shapeTotalSize = inputParams.get_bSize() * inputParams.get_n2Size() * inputParams.get_gSize() *
+    //                              inputParams.get_s1Size() * inputParams.get_s2Size();
+    //     auto layoutType = tilingData.inputParams.get_layoutType();
+    //     if (layoutType == LAYOUT_TND) {
+    //         for (int64_t i = 0; i < bSize; i++) {
+    //             dropTotalSize += (actualSeqLenData[i] * actualSeqLenKvData[i]);
+    //         }
+    //         shapeTotalSize = inputParams.get_n2Size() * inputParams.get_gSize() * dropTotalSize;
+    //     }
+    //     shapeTotalSize = AlignUp(shapeTotalSize, GM_ALIGN);
+    //     workspaces[0] += static_cast<size_t>(shapeTotalSize);
+    // }
+    std::cout << "inputparams" << inputParams.get_s1Size();
     if (pseType == PSE_INNER_MUL_ADD_TYPE || pseType == PSE_INNER_MUL_ADD_SQRT_TYPE) {
         tilingData.coreParams.set_pseAlibiBaseS1(pseAlibiBaseS1);
         tilingData.coreParams.set_pseAlibiBaseS2(pseAlibiBaseS2);
@@ -997,7 +996,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::PostTiling()
               templateName, workspaces[0], pseAlibiBaseS1, pseAlibiBaseS2);
     OPS_LOG_D_FULL(opName, "[%s] tiling data:%s", templateName, GetTilingDataDebugStr().c_str());
     OPS_LOG_D(context_, "[%s] tiling data size: %zu", templateName, tilingData.GetDataSize());
-
+    
     return ge::GRAPH_SUCCESS;
 }
 
