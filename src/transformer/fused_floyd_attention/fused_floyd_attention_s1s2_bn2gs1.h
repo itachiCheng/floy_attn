@@ -301,7 +301,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     this->ComputeConstexpr();
     this->InitBuffer();
     if (this->blockIdx == 0) {
-        AscendC::printf("this->s1D:", this->s1D);
+        AscendC::printf("this->s1D:%d", this->s1D);
     }
     // LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
     // DropOutBitModeInit(apiTmpBuffer);
