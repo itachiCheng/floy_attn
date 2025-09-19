@@ -307,7 +307,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForFusedFloydAttention(gert::Tilin
 
 IMPL_OP(FusedFloydAttention)
     .Tiling(TilingFusedFloydAttention)
-    .TilingInputsDataDependency({7, 8, 9, 10, 11})
+    .TilingInputsDataDependency({0, 1, 2, 3, 4})
     .TilingParse<FusedFloydAttentionCompileInfo>(TilingPrepareForFusedFloydAttention);  // 向框架注册入口函数
 
 } // namespace optiling
