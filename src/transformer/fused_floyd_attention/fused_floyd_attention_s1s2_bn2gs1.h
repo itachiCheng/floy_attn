@@ -297,8 +297,15 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
                                                    TPipe *tPipe)
 {
     this->InitInput(query, key0, key1, value0, value1, attenMask, softmaxMax, softmaxSum,
-                    softmaxOut, attentionOut, workspace, tiling, tPipe); // gm设置
-
+                    attentionOut, workspace, tiling, tPipe); // gm设置
+    this->ComputeConstexpr();
+    this->InitBuffer();
+    // LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
+    // DropOutBitModeInit(apiTmpBuffer);
+    // if (this->blockIdx < this->tilingData->multiCoreParams.coreNum) {
+    //     LocalTensor<half> pseHelpBuffer = this->stage1PingBuf.template Get<half>();
+    //     PseInnerAlibiCreate<hasPse>(this->pseAlibiGm, pseHelpBuffer, this->pseInfo);
+    // }
 }
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
