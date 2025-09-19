@@ -330,7 +330,7 @@ int main(int argc, char **argv)
               return ret);
 
     std::string v1FilePath = currentPath + "value_1.bin";
-    ret = CreateAclTensor(v1FilePath, v0Shape, 2, &v0DeviceAddr, aclDataType::ACL_FLOAT16, &v1);
+    ret = CreateAclTensor(v1FilePath, v1Shape, 2, &v0DeviceAddr, aclDataType::ACL_FLOAT16, &v1);
     CHECK_RET(ret == ACL_SUCCESS,
               FreeResource(q, k0, k1, v0, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, k0DeviceAddr, k1DeviceAddr,
                   v0DeviceAddr, v1DeviceAddr, attnDeviceAddr, attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
