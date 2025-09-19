@@ -1695,6 +1695,7 @@ ge::graphStatus FlashAttentionScoreTilingBase::PostTiling()
         shapeTotalSize = AlignUp(shapeTotalSize, GM_ALIGN);
         workspaces[0] += static_cast<size_t>(shapeTotalSize);
     }
+    std::cout << "inputparams" << inputParams.get_s1Size();
 
     if (pseType == PSE_INNER_MUL_ADD_TYPE || pseType == PSE_INNER_MUL_ADD_SQRT_TYPE) {
         tilingData.coreParams.set_pseAlibiBaseS1(pseAlibiBaseS1);
