@@ -1284,11 +1284,11 @@ __aicore__ inline int64_t
 FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
                               enableL1Reuse>::ComputeAttenMaskOffset(SplitExtraInfo &extraInfo, int64_t loopIdx)
 {
-    if constexpr (hasAtten == true) {
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-            static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
+    // if constexpr (hasAtten == true) {
+    //     if (this->tilingData->inputParams.attenMaskCompressMode ==
+    //         static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
             return this->ComputeOffsetForNoCompress(extraInfo, loopIdx);
-        }
+        // }
         // if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
         //     // compress mode
         //     int64_t delta = 0;
@@ -1387,7 +1387,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         // this->GetAttenMaskComputeMode(deltaCausalOrNext, deltaPre, s1Offset, extraInfo);
         // return ComputeOffsetForCausal(deltaCausalOrNext, extraInfo.vec1S1BaseSize, s2BaseNratioSize,
         //                               this->tilingData->inputParams.attenMaskS2Size);
-    }
+    // }
 }
 
 // template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
