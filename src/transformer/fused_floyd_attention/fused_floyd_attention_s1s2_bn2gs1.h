@@ -300,9 +300,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
                     attentionOut, workspace, tiling, tPipe); // gm设置
     this->ComputeConstexpr();
     this->InitBuffer();
-    if (this->blockIdx == 0) {
-        AscendC::printf("this->s1D:%d", this->s1D);
-    }
+
     // LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
     // DropOutBitModeInit(apiTmpBuffer);
     // if (this->blockIdx < this->tilingData->multiCoreParams.coreNum) {
@@ -478,6 +476,12 @@ __aicore__ inline void FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPs
         this->s1OuterSize = this->tilingData->coreParams.s1OuterSize;
     }
     this->s1D = this->tilingData->inputParams.s1Size * dSize;
+    if (this->blockIdx == 0) {
+        AscendC::printf("this->s1Size:%d", this->tilingData->inputParams.s1Size);
+    }
+    if (this->blockIdx == 0) {
+        AscendC::printf("this->dSize:%d", dSize);
+    }
     this->s2D = this->tilingData->inputParams.s2Size * dSize;
     this->gD = this->tilingData->inputParams.gSize * dSize;
     this->n2D = this->tilingData->inputParams.n2Size * dSize;
