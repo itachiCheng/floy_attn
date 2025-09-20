@@ -105,24 +105,6 @@ using namespace AscendC;
         op.Process();                                                                                              \
     } while (0)
 
-#define INVOKE_FA_GENERAL_OP_IMPL_VAR_LEN(templateClass, ...)                                                          \
-    do {                                                                                                               \
-        COPY_TILING_DATA(tiling);                                                                                      \
-        __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                            \
-        if (tilingData->inputParams.needDropMaskOp) {                                                                  \
-            FlashAttentionScoreDropMaskAdapter dropMaskAdapter;                                                        \
-            dropMaskAdapter.Init(dropMask, user, tilingData, &tPipe);                                                  \
-            dropMaskAdapter.Process();                                                                                 \
-        }                                                                                                              \
-        tPipe.Reset();                                                                                                 \
-        templateClass<__VA_ARGS__> op;                                                                                 \
-        REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm1Nz, bmm1tiling, op.bmm2,           \
-                          bmm2tiling);                                                                                 \
-        op.UnpackInit(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, actualSeqLengths,              \
-                      actualSeqLengthsKv, softmaxMax, softmaxSum, softmaxOut, attentionOut, user, tilingData, &tPipe); \
-        op.Process();                                                                                                  \
-    } while (0)
-
 #endif
 
 extern "C" __global__ __aicore__ void
