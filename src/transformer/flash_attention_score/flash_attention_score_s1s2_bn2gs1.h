@@ -1021,31 +1021,18 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             WaitFlag<HardEvent::MTE3_V>(eventIdMte3ToV);
         }
         pipe_barrier(PIPE_V);
-        if constexpr (!IsSameType<T, INPUT_T>::value) {
-            LocalTensor<INPUT_T> stage1CastTensor;
-            if (0 == this->blockIdx) {
-                AscendC::printf("Test1");
-            }
-            stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
-            Cast(stage1CastTensor, stage1PingTensor, RoundMode::CAST_ROUND,
-                 extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-            SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-            WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
 
-            DataCopy(
-                this->stage1Res[extraInfo.taskIdMod2][loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2AlignedSize],
-                stage1CastTensor, extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-        } else {
-            if (0 == this->blockIdx) {
-                AscendC::printf("Test2");
-            }
-            SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-            WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-            DataCopy(
-                this->stage1Res[extraInfo.taskIdMod2][loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2AlignedSize],
-                stage1PingTensor, extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-        }
+        LocalTensor<INPUT_T> stage1CastTensor;
+        stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
+        Cast(stage1CastTensor, stage1PingTensor, RoundMode::CAST_ROUND,
+                extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
+        SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
+        WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
 
+        DataCopy(
+            this->stage1Res[extraInfo.taskIdMod2][loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2AlignedSize],
+            stage1CastTensor, extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
+        
         if (loopIdx < extraInfo.realSplitN - 1) {
             SetFlag<HardEvent::MTE3_V>(eventIdMte3ToV);
         }
@@ -1074,27 +1061,7 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         if (maskOffset == -1) {
             maskOffset = this->ComputeAttenMaskOffset(extraInfo, loopIdx);
         }
-        if (this->attenMaskComputeMode == AttenMaskComputeMode::NO_NEED_COMPUTE_MODE) {
-            return;
-        }
-        if (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_ONLY_MODE ||
-            this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_N_COMPUTE_MODE) {
-            maskOffset = this->attenMaskOffsetPre;
-        }
-
         int64_t s2StrideSize = this->tilingData->inputParams.attenMaskS2Size;
-        if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-            if (this->tilingData->inputParams.attenMaskShapeType == attenMaskS1S2) {
-                s2StrideSize = this->tilingData->inputParams.s2Size;
-            } else if (this->tilingData->inputParams.attenMaskShapeType == attenMaskTT) {
-                s2StrideSize = this->s2SizeSum;
-            }
-            // band compress mode
-            if (this->tilingData->inputParams.attenMaskCompressMode !=
-                static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
-                s2StrideSize = this->tilingData->inputParams.attenMaskS2Size;
-            }
-        }
         BoolCopyIn(attenMaskUb, this->attenMaskGmInt, maskOffset, extraInfo.vec1S1RealSize, extraInfo.s2RealSize,
                    s2StrideSize);
         return;
@@ -1111,66 +1078,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         if (this->tilingData->inputParams.attenMaskCompressMode ==
             static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
             return this->ComputeOffsetForNoCompress(extraInfo, loopIdx);
-        }
-        if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-            // compress mode
-            int64_t delta = 0;
-            int64_t deltaPre = 0;
-            int64_t deltaN = static_cast<int64_t>((extraInfo.s1Size)) - static_cast<int64_t>((extraInfo.s2Size));
-            int64_t s1Offset = extraInfo.s1oIdx * this->s1BaseSize + loopIdx * extraInfo.vec1S1BaseSize;
-            int64_t s2Offset = extraInfo.s2StartIdx + extraInfo.s2LoopCount * this->s2BaseNratioSize;
-            if (this->tilingData->inputParams.attenMaskCompressMode ==
-                static_cast<uint8_t>(AttenMaskCompressMode::LEFT_UP_CAUSAL_MODE)) {
-                delta = s1Offset - s2Offset;
-            } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                       static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_MODE)) {
-                delta = s1Offset - s2Offset - deltaN;
-            } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                       static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-                int64_t tmpPre = this->tilingData->inputParams.preTokens;
-                int64_t tmpNext = this->tilingData->inputParams.nextTokens;
-                int64_t transPreTokens = extraInfo.s1Size - Max(extraInfo.s2Size - tmpPre, 0);
-                int64_t transNextTokens = extraInfo.s2Size - Max(extraInfo.s1Size - tmpNext, 0);
-                deltaPre = s1Offset - s2Offset - transPreTokens - 1;
-                int64_t maskOffsetPre =
-                    ComputeOffsetForCausal(deltaPre, extraInfo.vec1S1BaseSize, this->s2BaseNratioSize,
-                                           this->tilingData->inputParams.attenMaskS2Size);
-                this->attenMaskOffsetPre = maskOffsetPre; // save offset value for the 2nd mask operation.
-                delta = s1Offset - s2Offset + transNextTokens;
-            } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                       static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_BAND_MODE)) {
-                if (extraInfo.boIdx == this->tilingData->inputParams.bandIndex) {
-                    delta = s1Offset - s2Offset - deltaN + this->tilingData->inputParams.nextTokens;
-                } else {
-                    delta = s1Offset - s2Offset - deltaN;
-                }
-            } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                       static_cast<uint8_t>(AttenMaskCompressMode::BAND_LEFT_UP_CAUSAL_MODE)) {
-                if (extraInfo.boIdx == this->tilingData->inputParams.bandIndex) {
-                    delta = s1Offset - s2Offset + extraInfo.s2Size -
-                            Max(extraInfo.s1Size - this->tilingData->inputParams.nextTokens, 0);
-                } else {
-                    delta = s1Offset - s2Offset;
-                }
-            } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                       static_cast<uint8_t>(AttenMaskCompressMode::PREFIX_MODE)) {
-                delta = s1Offset - s2Offset - deltaN;
-                if ((extraInfo.s1Size + ((__gm__ int64_t *)this->prefixNAddr)[extraInfo.boIdx]) > extraInfo.s2Size) {
-                    // prefix reuse attenMaskOffsetPre
-                    deltaPre = ((__gm__ int64_t *)this->prefixNAddr)[extraInfo.boIdx] - extraInfo.s2StartIdx -
-                               extraInfo.s2LoopCount * this->s2BaseNratioSize;
-                    this->attenMaskOffsetPre = ComputeOffsetForPrefixRectangle(
-                        deltaPre, this->s2BaseNratioSize, this->tilingData->inputParams.attenMaskS2Size);
-                    if (this->blockIdx + extraInfo.vec1S1RealSize < prefixAttenMaskDownHeight) { // in case of out of bound
-                        this->attenMaskOffsetPre += this->tilingData->inputParams.attenMaskS2Size * this->blockIdx;
-                    }
-                }
-            } else {
-                return 0;
-            }
-            this->GetAttenMaskComputeMode(delta, deltaPre, s1Offset, extraInfo);
-            return ComputeOffsetForCausal(delta, extraInfo.vec1S1BaseSize, this->s2BaseNratioSize,
-                                          this->tilingData->inputParams.attenMaskS2Size);
         }
         // compress mode
         int64_t deltaCausalOrNext = 0;
