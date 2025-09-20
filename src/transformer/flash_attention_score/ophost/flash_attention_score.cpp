@@ -21,13 +21,16 @@ const std::array<const aclTensor *, 4>
 FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTensor *value,
                     const aclTensor *realShiftOptional, const aclTensor *dropMaskOptional,
                     const aclTensor *paddingMaskOptional, const aclTensor *attenMaskOptional,
-                    const aclIntArray *prefixOptional, double scaleValueOptional, double keepProbOptional,
+                    const aclIntArray *prefixOptional, const aclIntArray *actualSeqQLenOptional,
+                    const aclIntArray *actualSeqKvLenOptional, const aclIntArray *qStartIdxOptional,
+                    const aclIntArray *kvStartIdxOptional, double scaleValueOptional, double keepProbOptional,
                     int64_t preTockensOptional, int64_t nextTockensOptional, int64_t headNum, const char *inputLayout,
                     int64_t innerPreciseOptional, int64_t sparseModeOptional, int64_t pseTypeOptional,
                     aclOpExecutor *executor)
 {
     L0_DFX(FlashAttentionScore, query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional,
-           attenMaskOptional, prefixOptional, scaleValueOptional, keepProbOptional, preTockensOptional, nextTockensOptional,
+           attenMaskOptional, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
+           kvStartIdxOptional, scaleValueOptional, keepProbOptional, preTockensOptional, nextTockensOptional,
            headNum, inputLayout, innerPreciseOptional, sparseModeOptional, pseTypeOptional);
 
     if (realShiftOptional == nullptr) {
@@ -54,44 +57,44 @@ FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTenso
     }
 
     const aclTensor *actualSeqQLen = nullptr;
-    // if (actualSeqQLenOptional) {
-    //     actualSeqQLen = executor->ConvertToTensor(actualSeqQLenOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(actualSeqQLen)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqQLen)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqQLen)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     actualSeqQLen = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
+    if (actualSeqQLenOptional) {
+        actualSeqQLen = executor->ConvertToTensor(actualSeqQLenOptional, DataType::DT_INT64);
+        const_cast<aclTensor *>(actualSeqQLen)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqQLen)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqQLen)->SetOriginalFormat(Format::FORMAT_ND);
+    } else {
+        actualSeqQLen = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
+    }
 
     const aclTensor *actualSeqKvLen = nullptr;
-    // if (actualSeqKvLenOptional) {
-    //     actualSeqKvLen = executor->ConvertToTensor(actualSeqKvLenOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(actualSeqKvLen)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqKvLen)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqKvLen)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     actualSeqKvLen = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
+    if (actualSeqKvLenOptional) {
+        actualSeqKvLen = executor->ConvertToTensor(actualSeqKvLenOptional, DataType::DT_INT64);
+        const_cast<aclTensor *>(actualSeqKvLen)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqKvLen)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqKvLen)->SetOriginalFormat(Format::FORMAT_ND);
+    } else {
+        actualSeqKvLen = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
+    }
 
     const aclTensor *qStartIdxOptionalTensor = nullptr;
-    // if (qStartIdxOptional) {
-    //     qStartIdxOptionalTensor = executor->ConvertToTensor(qStartIdxOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     qStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
+    if (qStartIdxOptional) {
+        qStartIdxOptionalTensor = executor->ConvertToTensor(qStartIdxOptional, DataType::DT_INT64);
+        const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
+    } else {
+        qStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
+    }
 
     const aclTensor *kvStartIdxOptionalTensor = nullptr;
-    // if (kvStartIdxOptional) {
-    //     kvStartIdxOptionalTensor = executor->ConvertToTensor(kvStartIdxOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     kvStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
+    if (kvStartIdxOptional) {
+        kvStartIdxOptionalTensor = executor->ConvertToTensor(kvStartIdxOptional, DataType::DT_INT64);
+        const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
+    } else {
+        kvStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
+    }
 
     auto softmaxMaxOut = executor->AllocTensor(DataType::DT_FLOAT, Format::FORMAT_ND, Format::FORMAT_ND);
     auto softmaxSumOut = executor->AllocTensor(DataType::DT_FLOAT, Format::FORMAT_ND, Format::FORMAT_ND);
@@ -100,7 +103,8 @@ FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTenso
 
     auto ret = INFER_SHAPE(FlashAttentionScore,
                            OP_INPUT(query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional,
-                                    attenMaskOptional, prefixOptionalTensor),
+                                    attenMaskOptional, prefixOptionalTensor, actualSeqQLen, actualSeqKvLen,
+                                    qStartIdxOptionalTensor, kvStartIdxOptionalTensor),
                            OP_OUTPUT(softmaxMaxOut, softmaxSumOut, softmaxOutOut, attentionOutOut),
                            OP_ATTR(static_cast<float>(scaleValueOptional), static_cast<float>(keepProbOptional),
                                    preTockensOptional, nextTockensOptional, headNum, inputLayout, innerPreciseOptional,
@@ -112,7 +116,8 @@ FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTenso
 
     ADD_TO_LAUNCHER_LIST_AICORE(FlashAttentionScore,
                                 OP_INPUT(query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional,
-                                         attenMaskOptional, prefixOptionalTensor),
+                                         attenMaskOptional, prefixOptionalTensor, actualSeqQLen, actualSeqKvLen,
+                                         qStartIdxOptionalTensor, kvStartIdxOptionalTensor),
                                 OP_OUTPUT(softmaxMaxOut, softmaxSumOut, softmaxOutOut, attentionOutOut),
                                 OP_ATTR(static_cast<float>(scaleValueOptional), static_cast<float>(keepProbOptional),
                                         preTockensOptional, nextTockensOptional, headNum, inputLayout,
