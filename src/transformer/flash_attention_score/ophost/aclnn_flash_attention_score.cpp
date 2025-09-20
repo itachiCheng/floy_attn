@@ -640,7 +640,7 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
                          l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
 
-    CHECK_RET(PreprocessQKV(query, key, value, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(PreprocessQKV(query, key, value, attenMaskOptional, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, prefixOptional,
