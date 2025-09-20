@@ -86,29 +86,29 @@ if case_name == 'test_flash_attention_score':
     key.tofile('key.bin')
     value.tofile('value.bin')
     evo_mask.tofile('atten_mask.bin')
-    device = torch.device('npu')
-    q = torch.from_numpy(query).to(device)      # float16 -> NPU
-    k = torch.from_numpy(key).to(device)
-    v = torch.from_numpy(value).to(device)
-    mask_npu = torch.from_numpy(mask).to(device)  # float32
+    # device = torch.device('npu')
+    # q = torch.from_numpy(query).to(device)      # float16 -> NPU
+    # k = torch.from_numpy(key).to(device)
+    # v = torch.from_numpy(value).to(device)
+    # mask_npu = torch.from_numpy(mask).to(device)  # float32
 
-    q2 = q.reshape(B * H * N, M, D)
-    k2 = k.reshape(B * H * N, K, D)
-    v2 = v.reshape(B * H * N, K, D)
+    # q2 = q.reshape(B * H * N, M, D)
+    # k2 = k.reshape(B * H * N, K, D)
+    # v2 = v.reshape(B * H * N, K, D)
 
-    logits = torch.bmm(q2, k2.transpose(-2, -1))           # (B*N,S,S)
-    logits = logits.reshape(B*H, N, M, K)
+    # logits = torch.bmm(q2, k2.transpose(-2, -1))           # (B*N,S,S)
+    # logits = logits.reshape(B*H, N, M, K)
 
-    attention_mask = 1e12 * (mask_npu - 1)                 # (B,1,S,S)
-    logits = logits + attention_mask.half()                  # 按旧脚本用 float16 加
+    # attention_mask = 1e12 * (mask_npu - 1)                 # (B,1,S,S)
+    # logits = logits + attention_mask.half()                  # 按旧脚本用 float16 加
 
-    weight = torch.softmax(logits.float(), dim=-1).half()    # 先 float32 稳数值，再降回 float16
+    # weight = torch.softmax(logits.float(), dim=-1).half()    # 先 float32 稳数值，再降回 float16
 
-    attn = torch.bmm(weight.reshape(B * H * N, M, K), v2)        # (B*N,S,D)
-    attn = attn.reshape(B*H, N, M, D)
+    # attn = torch.bmm(weight.reshape(B * H * N, M, K), v2)        # (B*N,S,D)
+    # attn = attn.reshape(B*H, N, M, D)
 
-    # ---------- 4. 落盘结果 ----------
-    attn.cpu().numpy().tofile('attn.bin')
+    # # ---------- 4. 落盘结果 ----------
+    # attn.cpu().numpy().tofile('attn.bin')
 
 elif case_name == 'test_fused_floyd_attention':
     B = 2
