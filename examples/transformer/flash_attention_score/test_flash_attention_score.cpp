@@ -261,23 +261,7 @@ int main(int argc, char **argv)
     int64_t M = data[3];
     int64_t K = data[4];
     int64_t D = data[5];
-
-    int64_t batch = B*H;
-    int64_t sq = M;
-    int64_t skv = K;
-    int64_t headDim = D;
-    int64_t headNum = N;
-    int64_t h = headNum * headDim;
     
-    // std::vector<int64_t> qShape = {batch, headNum, sq, headDim};
-    // std::vector<int64_t> kShape = {batch, headNum, skv, headDim};
-    // std::vector<int64_t> vShape = {batch, headNum, skv, headDim};
-    // // std::vector<int64_t> pseShape = {1, headNum, sq, sq};
-    // std::vector<int64_t> attnShape = {batch, 1, sq, sq};
-    // std::vector<int64_t> attentionOutShape = {batch, headNum, sq, headDim};
-    // // std::vector<int64_t> attentionOutShape = {batch, sq, headNum, headDim};
-    // std::vector<int64_t> softmaxMaxShape = {batch, headNum, sq, 8};
-    // std::vector<int64_t> softmaxSumShape = {batch, headNum, sq, 8};
     // 五维数据修改
     std::vector<int64_t> qShape = {B, H, N, M, D};
     std::vector<int64_t> kShape = {B, H, N, K, D};
