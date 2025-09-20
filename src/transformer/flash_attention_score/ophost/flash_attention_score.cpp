@@ -44,14 +44,14 @@ FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTenso
     }
 
     const aclTensor *prefixOptionalTensor = nullptr;
-    // if (prefixOptional) {
-    //     prefixOptionalTensor = executor->ConvertToTensor(prefixOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(prefixOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(prefixOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(prefixOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     prefixOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
+    if (prefixOptional) {
+        prefixOptionalTensor = executor->ConvertToTensor(prefixOptional, DataType::DT_INT64);
+        const_cast<aclTensor *>(prefixOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(prefixOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(prefixOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
+    } else {
+        prefixOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
+    }
 
     const aclTensor *actualSeqQLen = nullptr;
     // if (actualSeqQLenOptional) {
@@ -84,14 +84,14 @@ FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTenso
     // }
 
     const aclTensor *kvStartIdxOptionalTensor = nullptr;
-    if (kvStartIdxOptional) {
-        kvStartIdxOptionalTensor = executor->ConvertToTensor(kvStartIdxOptional, DataType::DT_INT64);
-        const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-        const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-        const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    } else {
-        kvStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    }
+    // if (kvStartIdxOptional) {
+    //     kvStartIdxOptionalTensor = executor->ConvertToTensor(kvStartIdxOptional, DataType::DT_INT64);
+    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
+    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
+    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
+    // } else {
+    //     kvStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
+    // }
 
     auto softmaxMaxOut = executor->AllocTensor(DataType::DT_FLOAT, Format::FORMAT_ND, Format::FORMAT_ND);
     auto softmaxSumOut = executor->AllocTensor(DataType::DT_FLOAT, Format::FORMAT_ND, Format::FORMAT_ND);
