@@ -999,15 +999,10 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             shapeInfo.srcLastAxis = extraInfo.s2AlignedSize;
             shapeInfo.maskLastAxis = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
             stage1PingTensor.SetSize(extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-            if (0 == this->blockIdx) {
-                AscendC::printf("this->attenMaskComputeMode is %d\n", this->attenMaskComputeMode);
-            }
-            if (this->attenMaskComputeMode != AttenMaskComputeMode::NO_NEED_COMPUTE_MODE &&
-                this->attenMaskComputeMode != AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
-                uint8_t maskType = (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_ONLY_MODE) ? 1 : 0;
-                LocalTensor<uint8_t> attenMaskUb = this->maskTBufPing.template Get<uint8_t>();
-                this->ComputeAttenMask(shapeInfo, stage1PingTensor, attenMaskUb, maskType, eventIdMte2ToV);
-            }
+
+            uint8_t maskType = 0;
+            LocalTensor<uint8_t> attenMaskUb = this->maskTBufPing.template Get<uint8_t>();
+            this->ComputeAttenMask(shapeInfo, stage1PingTensor, attenMaskUb, maskType, eventIdMte2ToV);
         }
         if (loopIdx < extraInfo.realSplitN - 1) {
             SetFlag<HardEvent::V_MTE2>(eventIdVToMte2B);
