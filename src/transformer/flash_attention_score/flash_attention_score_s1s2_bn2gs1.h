@@ -145,7 +145,6 @@ protected:
                                            bool secondTime = false);
     __aicore__ inline void GetAttenMaskComputeMode(int64_t deltaCausalOrNext, int64_t deltaPre, int64_t s1Offset,
                                                    SplitExtraInfo &extraInfo);
-    __aicore__ inline int64_t ComputeAttenMaskOffset(SplitExtraInfo &extraInfo, int64_t loopIdx);
     __aicore__ inline int64_t ComputeOffsetForNoCompress(SplitExtraInfo &extraInfo, int64_t loopIdx);
     __aicore__ inline void GetBmm1Result(SplitExtraInfo &extraInfo, LocalTensor<T> &bmm1ResUb, int64_t loopIdx);
     __aicore__ inline void ComputeAttenMask(SelectWithBytesMaskShapeInfo &shapeInfo, LocalTensor<T> &bmm1ResUb,
@@ -865,30 +864,11 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     int64_t s1Offset = 0;
     int64_t n2Offset = 0;
     int64_t gOffset = 0;
-    if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BSH) {
-        // BSH/BSNGD
-        bOffset = extraInfo.boIdx * this->n2GS1D;
-        s1Offset = extraInfo.s1oIdx * this->s1BaseN2GD;
-        n2Offset = extraInfo.n2oIdx * this->gD;
-        gOffset = extraInfo.goIdx * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_SBH) {
-        // SBH/SBNGD
-        s1Offset = extraInfo.s1oIdx * this->s1BaseBN2GD;
-        bOffset = extraInfo.boIdx * this->n2GD;
-        n2Offset = extraInfo.n2oIdx * this->gD;
-        gOffset = extraInfo.goIdx * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BNSD) {
-        // bnsd
-        bOffset = extraInfo.boIdx * this->n2GS1D;
-        n2Offset = extraInfo.n2oIdx * this->gS1D;
-        gOffset = extraInfo.goIdx * this->s1D;
-        s1Offset = extraInfo.s1oIdx * this->s1BaseD;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-        bOffset = extraInfo.s1SizeAcc * this->n2GD;
-        s1Offset = extraInfo.s1oIdx * this->s1BaseN2GD;
-        n2Offset = extraInfo.n2oIdx * this->gD;
-        gOffset = extraInfo.goIdx * this->dSize;
-    }
+    // BNSD
+    bOffset = extraInfo.boIdx * this->n2GS1D;
+    n2Offset = extraInfo.n2oIdx * this->gS1D;
+    gOffset = extraInfo.goIdx * this->s1D;
+    s1Offset = extraInfo.s1oIdx * this->s1BaseD;
     this->qCoreOffset = bOffset + n2Offset + gOffset + s1Offset;
     extraInfo.qCoreOffset = this->qCoreOffset;
     bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset]);
@@ -907,26 +887,10 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     int64_t bOffset = 0;
     int64_t n2Offset = 0;
     int64_t s2Offset = 0;
-    if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BSH) {
-        // BSH/BSND
-        bOffset = extraInfo.boIdx * this->n2S2D;
-        s2Offset = extraInfo.s2StartIdx * this->n2D + extraInfo.s2LoopCount * this->s2BaseNratioN2D;
-        n2Offset = extraInfo.n2oIdx * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_SBH) {
-        // SBH/SBND
-        s2Offset = extraInfo.s2StartIdx * this->bN2D + extraInfo.s2LoopCount * this->s2BaseNratioBN2D;
-        bOffset = extraInfo.boIdx * this->n2D;
-        n2Offset = extraInfo.n2oIdx * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BNSD) {
-        // BNSD
-        bOffset = extraInfo.boIdx * this->n2S2D;
-        n2Offset = extraInfo.n2oIdx * this->s2D;
-        s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-        bOffset = extraInfo.s2SizeAcc * this->n2D;
-        s2Offset = extraInfo.s2StartIdx * this->n2D + extraInfo.s2LoopCount * this->s2BaseNratioN2D;
-        n2Offset = extraInfo.n2oIdx * this->dSize;
-    }
+    // BNSD
+    bOffset = extraInfo.boIdx * this->n2S2D;
+    n2Offset = extraInfo.n2oIdx * this->s2D;
+    s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
     int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
     bmm1.SetTensorB(this->keyGm[kCoreOffset], true);
     bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
@@ -1059,64 +1023,12 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             attenMaskUb = this->maskTBufPing.template Get<uint8_t>();
         }
         if (maskOffset == -1) {
-            maskOffset = this->ComputeAttenMaskOffset(extraInfo, loopIdx);
+            maskOffset = this->ComputeOffsetForNoCompress(extraInfo, loopIdx);
         }
         int64_t s2StrideSize = this->tilingData->inputParams.attenMaskS2Size;
         BoolCopyIn(attenMaskUb, this->attenMaskGmInt, maskOffset, extraInfo.vec1S1RealSize, extraInfo.s2RealSize,
                    s2StrideSize);
         return;
-    }
-}
-
-template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
-          typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
-__aicore__ inline int64_t
-FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
-                              enableL1Reuse>::ComputeAttenMaskOffset(SplitExtraInfo &extraInfo, int64_t loopIdx)
-{
-    if constexpr (hasAtten == true) {
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-            static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
-            return this->ComputeOffsetForNoCompress(extraInfo, loopIdx);
-        }
-        // compress mode
-        int64_t deltaCausalOrNext = 0;
-        int64_t deltaPre = 0;
-        int64_t deltaN = extraInfo.s1Size - extraInfo.s2Size;
-        int64_t s1Offset = extraInfo.s1oIdx * this->s1BaseSize + loopIdx * extraInfo.vec1S1BaseSize;
-        int64_t s2Offset = extraInfo.s2StartIdx + extraInfo.s2LoopCount * this->s2BaseNratioSize;
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-            static_cast<uint8_t>(AttenMaskCompressMode::LEFT_UP_CAUSAL_MODE)) {
-            deltaCausalOrNext = s1Offset - s2Offset;
-        } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                   static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_MODE)) {
-            deltaCausalOrNext = s1Offset - s2Offset - deltaN;
-        } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                   static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-            deltaPre = s1Offset - s2Offset - this->tilingData->inputParams.preTokens - 1;
-            this->attenMaskOffsetPre =
-                ComputeOffsetForCausal(deltaPre, extraInfo.vec1S1BaseSize, this->s2BaseNratioSize,
-                                       this->tilingData->inputParams.attenMaskS2Size);
-            deltaCausalOrNext = s1Offset - s2Offset + this->tilingData->inputParams.nextTokens;
-        } else if (this->tilingData->inputParams.attenMaskCompressMode ==
-                   static_cast<uint8_t>(AttenMaskCompressMode::PREFIX_MODE)) {
-            deltaCausalOrNext = s1Offset - s2Offset - deltaN;
-            if ((extraInfo.s1Size + ((__gm__ int64_t *)this->prefixNAddr)[extraInfo.boIdx]) > extraInfo.s2Size) {
-                // prefix reuse attenMaskOffsetPre
-                deltaPre = ((__gm__ int64_t *)this->prefixNAddr)[extraInfo.boIdx] - extraInfo.s2StartIdx -
-                           extraInfo.s2LoopCount * this->s2BaseNratioSize;
-                this->attenMaskOffsetPre = ComputeOffsetForPrefixRectangle(
-                    deltaPre, this->s2BaseNratioSize, this->tilingData->inputParams.attenMaskS2Size);
-                if (this->blockIdx + extraInfo.vec1S1RealSize < prefixAttenMaskDownHeight) { // in case of out of bound
-                    this->attenMaskOffsetPre += this->tilingData->inputParams.attenMaskS2Size * this->blockIdx;
-                }
-            }
-        } else {
-            return 0;
-        }
-        this->GetAttenMaskComputeMode(deltaCausalOrNext, deltaPre, s1Offset, extraInfo);
-        return ComputeOffsetForCausal(deltaCausalOrNext, extraInfo.vec1S1BaseSize, s2BaseNratioSize,
-                                      this->tilingData->inputParams.attenMaskS2Size);
     }
 }
 
