@@ -254,25 +254,20 @@ int main(int argc, char **argv)
         std::cout << "layout value: " << value << std::endl;
         data.push_back(value);
     }
-    int64_t batch = data[0];
-    int64_t sq = data[1];
-    int64_t skv = data[1];
-    int64_t headDim = data[3];
-    int64_t headNum = data[2];
+    // BHNMD
+    int64_t B = data[0];
+    int64_t H = data[1];
+    int64_t N = data[2];
+    int64_t M = data[3];
+    int64_t K = data[4];
+    int64_t D = data[5];
+
+    int64_t batch = B*H;
+    int64_t sq = M;
+    int64_t skv = K;
+    int64_t headDim = D;
+    int64_t headNum = N;
     int64_t h = headNum * headDim;
-    // std::vector<int64_t> qShape = {sq, batch, h};
-    // std::vector<int64_t> kShape = {skv, batch, h};
-    // std::vector<int64_t> vShape = {skv, batch, h};
-    // std::vector<int64_t> attentionOutShape = {sq, batch, h};
-    // std::vector<int64_t> softmaxMaxShape = {batch, headNum, sq, 8};
-    // std::vector<int64_t> softmaxSumShape = {batch, headNum, sq, 8};
-    // double scaleValue = 1.0;
-    // double keepProb = 1;
-    // int64_t preTokens = 2147483647;
-    // int64_t nextTokens = 2147483647;
-    // int64_t innerPrecise = 0;
-    // int64_t sparseMod = 0;
-    // char layOut[] = "SBH";
 
     std::vector<int64_t> qShape = {batch, headNum, sq, headDim};
     std::vector<int64_t> kShape = {batch, headNum, skv, headDim};
