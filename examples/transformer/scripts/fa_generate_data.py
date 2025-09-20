@@ -91,10 +91,10 @@ if case_name == 'test_flash_attention_score':
     k = torch.from_numpy(key).to(device)
     v = torch.from_numpy(value).to(device)
     mask_npu = torch.from_numpy(mask).to(device)  # float32
-
+    mask_npu = mask_npu.reshape(B * H, N, M, K)
     q2 = q.reshape(B * H * N, M, D)
     k2 = k.reshape(B * H * N, K, D)
-    v2 = v.reshape(B * H * N, K, D)
+    v2 = v.reshape(B * H * N, M, K)
 
     logits = torch.bmm(q2, k2.transpose(-2, -1))           # (B*N,S,S)
     logits = logits.reshape(B*H, N, M, K)
