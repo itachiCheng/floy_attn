@@ -1215,49 +1215,49 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             Muls(stage1PingTensor, actualUseTensor, static_cast<T>(this->tilingData->inputParams.scaleValue),
             extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
         }
-        if constexpr (hasAtten) {
-            SelectWithBytesMaskShapeInfo shapeInfo;
-            shapeInfo.firstAxis = extraInfo.vec1S1RealSize;
-            shapeInfo.srcLastAxis = extraInfo.s2AlignedSize;
-            shapeInfo.maskLastAxis = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
-            stage1PingTensor.SetSize(extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-            if (this->attenMaskComputeMode != AttenMaskComputeMode::NO_NEED_COMPUTE_MODE &&
-                this->attenMaskComputeMode != AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
-                uint8_t maskType = (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_ONLY_MODE) ? 1 : 0;
-                LocalTensor<uint8_t> attenMaskUb = this->maskTBufPing.template Get<uint8_t>();
-                this->ComputeAttenMask(shapeInfo, stage1PingTensor, attenMaskUb, maskType, eventIdMte2ToV);
-            }
+        // if constexpr (hasAtten) {
+        //     SelectWithBytesMaskShapeInfo shapeInfo;
+        //     shapeInfo.firstAxis = extraInfo.vec1S1RealSize;
+        //     shapeInfo.srcLastAxis = extraInfo.s2AlignedSize;
+        //     shapeInfo.maskLastAxis = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
+        //     stage1PingTensor.SetSize(extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
+        //     if (this->attenMaskComputeMode != AttenMaskComputeMode::NO_NEED_COMPUTE_MODE &&
+        //         this->attenMaskComputeMode != AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
+        //         uint8_t maskType = (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_ONLY_MODE) ? 1 : 0;
+        //         LocalTensor<uint8_t> attenMaskUb = this->maskTBufPing.template Get<uint8_t>();
+        //         this->ComputeAttenMask(shapeInfo, stage1PingTensor, attenMaskUb, maskType, eventIdMte2ToV);
+        //     }
 
-            if (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_AND_NEXT_MODE ||
-                this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
-                event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-                SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
-                WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
-                SetFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
-                WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
-                this->CopyInAttenMask(extraInfo, loopIdx, this->attenMaskOffsetPre, true);
-                LocalTensor<uint8_t> secondTimeMaskUb;
-                uint8_t maskType;
-                if (this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
-                    int32_t alignedS2Size = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
-                    int32_t maskNum = extraInfo.vec1S1RealSize * alignedS2Size / 2; // 除2数据量按照uint16类型折半
+        //     if (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_AND_NEXT_MODE ||
+        //         this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
+        //         event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
+        //         SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
+        //         WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
+        //         SetFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
+        //         WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
+        //         this->CopyInAttenMask(extraInfo, loopIdx, this->attenMaskOffsetPre, true);
+        //         LocalTensor<uint8_t> secondTimeMaskUb;
+        //         uint8_t maskType;
+        //         if (this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
+        //             int32_t alignedS2Size = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
+        //             int32_t maskNum = extraInfo.vec1S1RealSize * alignedS2Size / 2; // 除2数据量按照uint16类型折半
 
-                    secondTimeMaskUb = this->maskTBufPing.template Get<uint8_t>();
-                    LocalTensor<uint8_t> attenMaskPrefixUb = this->pseTBuf.template Get<uint8_t>();
-                    auto attenMaskCasualTmp = secondTimeMaskUb.ReinterpretCast<uint16_t>();
-                    auto attenMaskPrefixUbTmp = attenMaskPrefixUb.ReinterpretCast<uint16_t>();
-                    SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-                    WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-                    And(attenMaskCasualTmp, attenMaskCasualTmp, attenMaskPrefixUbTmp, maskNum);
-                    maskType = 0;
-                    pipe_barrier(PIPE_V);
-                } else {
-                    secondTimeMaskUb = this->pseTBuf.template Get<uint8_t>();
-                    maskType = 1;
-                }
-                this->ComputeAttenMask(shapeInfo, stage1PingTensor, secondTimeMaskUb, maskType, eventIdMte2ToV);
-            }
-        }
+        //             secondTimeMaskUb = this->maskTBufPing.template Get<uint8_t>();
+        //             LocalTensor<uint8_t> attenMaskPrefixUb = this->pseTBuf.template Get<uint8_t>();
+        //             auto attenMaskCasualTmp = secondTimeMaskUb.ReinterpretCast<uint16_t>();
+        //             auto attenMaskPrefixUbTmp = attenMaskPrefixUb.ReinterpretCast<uint16_t>();
+        //             SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
+        //             WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
+        //             And(attenMaskCasualTmp, attenMaskCasualTmp, attenMaskPrefixUbTmp, maskNum);
+        //             maskType = 0;
+        //             pipe_barrier(PIPE_V);
+        //         } else {
+        //             secondTimeMaskUb = this->pseTBuf.template Get<uint8_t>();
+        //             maskType = 1;
+        //         }
+        //         this->ComputeAttenMask(shapeInfo, stage1PingTensor, secondTimeMaskUb, maskType, eventIdMte2ToV);
+        //     }
+        // }
         if (loopIdx < extraInfo.realSplitN - 1) {
             SetFlag<HardEvent::V_MTE2>(eventIdVToMte2B);
         }
