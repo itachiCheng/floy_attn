@@ -270,7 +270,6 @@ protected:
     GlobalTensor<INPUT_T> attentionOutGm;
     GlobalTensor<float> softmaxMaxGm;
     GlobalTensor<float> softmaxSumGm;
-    GlobalTensor<uint8_t> dropMaskGm;
     GlobalTensor<uint8_t> attenMaskGmInt;
 
     bool dropMaskUnAligned;
@@ -330,15 +329,7 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     this->pseGm.SetGlobalBuffer((__gm__ INPUT_T *)pse);
     this->pseSlope = pse;
     this->prefixNAddr = prefix;
-    this->dropMaskUnAligned = this->tilingData->inputParams.needDropMaskOp == 1;
-    if (this->dropMaskUnAligned) {
-        this->dropMaskGm.SetGlobalBuffer(workspace);
-        if constexpr (hasDrop == true) {
-            workspace += CeilDiv(this->tilingData->dropmaskParams.shapeTotalSize, 512) * 512;
-        }
-    } else {
-        this->dropMaskGm.SetGlobalBuffer((__gm__ uint8_t *)dropMask);
-    }
+    
     this->attenMaskGmInt.SetGlobalBuffer((__gm__ uint8_t *)attenMask);
     this->softmaxMaxGm.SetGlobalBuffer((__gm__ float *)softmaxMax);
     this->softmaxSumGm.SetGlobalBuffer((__gm__ float *)softmaxSum);
