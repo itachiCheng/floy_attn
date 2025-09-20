@@ -94,7 +94,7 @@ if case_name == 'test_flash_attention_score':
     mask_npu = mask_npu.reshape(B * H, N, M, K)
     q2 = q.reshape(B * H * N, M, D)
     k2 = k.reshape(B * H * N, K, D)
-    v2 = v.reshape(B * H * N, M, K)
+    v2 = v.reshape(B * H * N, M, D)
 
     logits = torch.bmm(q2, k2.transpose(-2, -1))           # (B*N,S,S)
     logits = logits.reshape(B*H, N, M, K)
