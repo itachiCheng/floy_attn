@@ -1097,7 +1097,7 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
     //     return;
     } else if (TILING_KEY_IS(10000001010220330943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION s1s2L1Reuse
         INVOKE_FA_GENERAL_OP_IMPL(FlashAttentionScoreS1s2Bn2gs1, ImplModeEnum::AA_HIGH_PRECISION,
-                                  LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true, CubeFormat::ND,
+                                  LayOutTypeEnum::LAYOUT_BNSD, false, false, false, half, float, true, CubeFormat::ND,
                                   true);
         return;
     // } else if (TILING_KEY_IS(10000001010220332943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION s1s2L1Reuse
