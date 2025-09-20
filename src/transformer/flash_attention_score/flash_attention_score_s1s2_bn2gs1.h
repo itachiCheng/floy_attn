@@ -143,8 +143,6 @@ protected:
     __aicore__ inline void ProcessVec1(SplitExtraInfo &extraInfo);
     __aicore__ inline void CopyInAttenMask(SplitExtraInfo &extraInfo, int64_t loopIdx, int64_t maskOffset,
                                            bool secondTime = false);
-    __aicore__ inline void GetAttenMaskComputeMode(int64_t deltaCausalOrNext, int64_t deltaPre, int64_t s1Offset,
-                                                   SplitExtraInfo &extraInfo);
     __aicore__ inline int64_t ComputeOffsetForNoCompress(SplitExtraInfo &extraInfo, int64_t loopIdx);
     __aicore__ inline void GetBmm1Result(SplitExtraInfo &extraInfo, LocalTensor<T> &bmm1ResUb, int64_t loopIdx);
     __aicore__ inline void ComputeAttenMask(SelectWithBytesMaskShapeInfo &shapeInfo, LocalTensor<T> &bmm1ResUb,
@@ -1032,29 +1030,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     }
 }
 
-template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
-          typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
-__aicore__ inline void
-FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
-                              enableL1Reuse>::GetAttenMaskComputeMode(int64_t deltaCausalOrNext, int64_t deltaPre,
-                                                                      int64_t s1Offset, SplitExtraInfo &extraInfo)
-{
-    if constexpr (hasAtten == true) {
-        int64_t causalOrNextFactor = deltaCausalOrNext - extraInfo.s2AlignedSize;
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-                static_cast<uint8_t>(AttenMaskCompressMode::LEFT_UP_CAUSAL_MODE) ||
-            this->tilingData->inputParams.attenMaskCompressMode ==
-                static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_MODE)) {
-            if (causalOrNextFactor >= 0) {
-                this->attenMaskComputeMode = AttenMaskComputeMode::NO_NEED_COMPUTE_MODE;
-            } else {
-                this->attenMaskComputeMode = AttenMaskComputeMode::CAUSAL_OR_NEXT_ONLY_MODE;
-            }
-            return;
-        }
-        return;
-    }
-}
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
           typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
@@ -1401,6 +1376,7 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
         WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
         int64_t dAlign8 = (this->dSize + 7) / 8 * 8;
+
         DataCopyParams dataCopyParams;
         DataCopyPadParams dataCopyPadParams;
         dataCopyParams.blockCount = extraInfo.vec2S1RealSize;
