@@ -19,9 +19,7 @@ const std::array<const aclTensor *, 4>
 FlashAttentionScore(const aclTensor *query, const aclTensor *key, const aclTensor *value,
                     const aclTensor *realShiftOptional, const aclTensor *dropMaskOptional,
                     const aclTensor *paddingMaskOptional, const aclTensor *attenMaskOptional,
-                    const aclIntArray *prefixOptional, const aclIntArray *actualSeqQLenOptional,
-                    const aclIntArray *actualSeqKvLenOptional, const aclIntArray *qStartIdxOptional,
-                    const aclIntArray *kvStartIdxOptional, double scaleValueOptional, double keepProbOptional,
+                    const aclIntArray *prefixOptional, double scaleValueOptional, double keepProbOptional,
                     int64_t preTockensOptional, int64_t nextTockensOptional, int64_t headNum, const char *inputLayout,
                     int64_t innerPreciseOptional, int64_t sparseModeOptional, int64_t pseTypeOptional,
                     aclOpExecutor *executor);
