@@ -177,24 +177,24 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
     TPipe tPipe;
     set_mask_norm();
 
-    // if (TILING_KEY_IS(90) || TILING_KEY_IS(92) || TILING_KEY_IS(94)) {
-    //     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreTilingData, tiling_data_in, tiling);
-    //     const FlashAttentionScoreTilingData *__restrict tiling_data = &tiling_data_in;
-    //     if (TILING_KEY_IS(90)) {
-    //         FlashAttentionScoreEmptyTensor<half> op;
-    //         op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
-    //         op.Process();
-    //     } else if (TILING_KEY_IS(92)) {
-    //         FlashAttentionScoreEmptyTensor<float> op;
-    //         op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
-    //         op.Process();
-    //     } else if (TILING_KEY_IS(94)) {
-    //         FlashAttentionScoreEmptyTensor<bfloat16_t> op;
-    //         op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
-    //         op.Process();
-    //     }
-    //     return;
-    // }
+    if (TILING_KEY_IS(90) || TILING_KEY_IS(92) || TILING_KEY_IS(94)) {
+        GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreTilingData, tiling_data_in, tiling);
+        const FlashAttentionScoreTilingData *__restrict tiling_data = &tiling_data_in;
+        if (TILING_KEY_IS(90)) {
+            FlashAttentionScoreEmptyTensor<half> op;
+            op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
+            op.Process();
+        } else if (TILING_KEY_IS(92)) {
+            FlashAttentionScoreEmptyTensor<float> op;
+            op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
+            op.Process();
+        } else if (TILING_KEY_IS(94)) {
+            FlashAttentionScoreEmptyTensor<bfloat16_t> op;
+            op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
+            op.Process();
+        }
+        return;
+    }
 
 #if (ORIG_DTYPE_QUERY == DT_FLOAT16)             // 3
     if (TILING_KEY_IS(10000000000220130943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION
