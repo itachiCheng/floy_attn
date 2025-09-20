@@ -644,7 +644,7 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, prefixOptional,
-        nullptr, nullptr, nullptr, nullptr, scaleValueOptional, keepProbOptional, preTokensOptional, nextTokensOptional, headNum,
+        scaleValueOptional, keepProbOptional, preTokensOptional, nextTokensOptional, headNum,
         shapeInfo.l0InputLayoutStr.c_str(), innerPreciseOptional, sparseModeOptional, PSE_TYPE_V1, l0Executor);
 
     CHECK_RET(l0FlashAttentionScoreOuts[0] != nullptr, ACLNN_ERR_INNER_NULLPTR);
