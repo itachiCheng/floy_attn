@@ -14,11 +14,9 @@
  */
 
 #include "kernel_operator.h"
-#include "flash_attention_score_drop_mask_adapter.h"
 #include "flash_attention_score_s1s2_bn2gs1.h"
 #include "flash_attention_score_s1_bn2gs1.h"
 #include "flash_attention_score_bn2gs1s2_b.h"
-#include "flash_attention_var_len_score.h"
 
 using namespace AscendC;
 
