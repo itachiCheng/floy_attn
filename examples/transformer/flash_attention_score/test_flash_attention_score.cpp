@@ -268,16 +268,26 @@ int main(int argc, char **argv)
     int64_t headDim = D;
     int64_t headNum = N;
     int64_t h = headNum * headDim;
-
-    std::vector<int64_t> qShape = {batch, headNum, sq, headDim};
-    std::vector<int64_t> kShape = {batch, headNum, skv, headDim};
-    std::vector<int64_t> vShape = {batch, headNum, skv, headDim};
+    
+    // std::vector<int64_t> qShape = {batch, headNum, sq, headDim};
+    // std::vector<int64_t> kShape = {batch, headNum, skv, headDim};
+    // std::vector<int64_t> vShape = {batch, headNum, skv, headDim};
+    // // std::vector<int64_t> pseShape = {1, headNum, sq, sq};
+    // std::vector<int64_t> attnShape = {batch, 1, sq, sq};
+    // std::vector<int64_t> attentionOutShape = {batch, headNum, sq, headDim};
+    // // std::vector<int64_t> attentionOutShape = {batch, sq, headNum, headDim};
+    // std::vector<int64_t> softmaxMaxShape = {batch, headNum, sq, 8};
+    // std::vector<int64_t> softmaxSumShape = {batch, headNum, sq, 8};
+    // 五维数据修改
+    std::vector<int64_t> qShape = {B, H, N, M, D};
+    std::vector<int64_t> kShape = {B, H, N, K, D};
+    std::vector<int64_t> vShape = {B, H, N, K, D};
     // std::vector<int64_t> pseShape = {1, headNum, sq, sq};
-    std::vector<int64_t> attnShape = {batch, 1, sq, sq};
-    std::vector<int64_t> attentionOutShape = {batch, headNum, sq, headDim};
+    std::vector<int64_t> attnShape = {B, H, N, M, K};
+    std::vector<int64_t> attentionOutShape = {B, H, N, M, D};
     // std::vector<int64_t> attentionOutShape = {batch, sq, headNum, headDim};
-    std::vector<int64_t> softmaxMaxShape = {batch, headNum, sq, 8};
-    std::vector<int64_t> softmaxSumShape = {batch, headNum, sq, 8};
+    std::vector<int64_t> softmaxMaxShape = {B, H, N, M, 8};
+    std::vector<int64_t> softmaxSumShape = {B, H, N, M, 8};
     double scaleValue = 1.0;
     double keepProb = 1;
     int64_t preTokens = 2147483647;
@@ -308,9 +318,12 @@ int main(int argc, char **argv)
     aclTensor *softmaxOut = nullptr;
     aclTensor *attentionOut = nullptr;
 
-    std::vector<float> attentionOutHostData(sq * batch * h, 0.0);
-    std::vector<float> softmaxMaxHostData(batch * headNum * sq * 8, 0.0);
-    std::vector<float> softmaxSumHostData(batch * headNum * sq * 8, 0.0);
+    // std::vector<float> attentionOutHostData(sq * batch * h, 0.0);
+    // std::vector<float> softmaxMaxHostData(batch * headNum * sq * 8, 0.0);
+    // std::vector<float> softmaxSumHostData(batch * headNum * sq * 8, 0.0);
+    std::vector<float> attentionOutHostData(B*H*N*M*D, 0.0);
+    std::vector<float> softmaxMaxHostData(B*H*N*M*8, 0.0);
+    std::vector<float> softmaxSumHostData(B*H*N*M*8, 0.0);
     uint64_t workspaceSize = 0;
     void *workspaceAddr = nullptr;
 
