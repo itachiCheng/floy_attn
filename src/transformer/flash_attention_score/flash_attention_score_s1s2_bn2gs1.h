@@ -1343,28 +1343,10 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     int64_t bOffset = 0;
     int64_t n2Offset = 0;
     int64_t s2Offset = 0;
-
-    if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BSH) {
-        // BSH/BSND
-        bOffset = extraInfo.boIdx * this->n2S2D;
-        s2Offset = extraInfo.s2StartIdx * this->n2D + extraInfo.s2LoopCount * s2BaseNratioSize * this->n2D;
-        n2Offset = extraInfo.n2oIdx * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_SBH) {
-        // SBH/SBND
-        s2Offset = extraInfo.s2StartIdx * this->bN2D + extraInfo.s2LoopCount * s2BaseNratioSize * this->bN2D;
-        bOffset = extraInfo.boIdx * this->n2D;
-        n2Offset = extraInfo.n2oIdx * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BNSD) {
-        // BNSD
-        bOffset = extraInfo.boIdx * this->n2S2D;
-        n2Offset = extraInfo.n2oIdx * this->s2D;
-        s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * s2BaseNratioSize * dSize;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-        // TND
-        bOffset = extraInfo.s2SizeAcc * this->n2D;
-        s2Offset = extraInfo.s2StartIdx * this->n2D + extraInfo.s2LoopCount * this->s2BaseNratioSize * this->n2D;
-        n2Offset = extraInfo.n2oIdx * this->dSize;
-    }
+    // BNSD
+    bOffset = extraInfo.boIdx * this->n2S2D;
+    n2Offset = extraInfo.n2oIdx * this->s2D;
+    s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * s2BaseNratioSize * dSize;
 
     int64_t vCoreOffset = bOffset + n2Offset + s2Offset;
     if constexpr (layOutType != LayOutTypeEnum::LAYOUT_TND) {
@@ -1419,46 +1401,27 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
         WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
         int64_t dAlign8 = (this->dSize + 7) / 8 * 8;
-        if constexpr (IsSameType<T, INPUT_T>::value == false && layOutType == LayOutTypeEnum::LAYOUT_TND) {
-            Nz2NdInfo nz2NdInfo;
-            nz2NdInfo.ndFirstAxisRealSize = extraInfo.s1RealSize;
-            nz2NdInfo.ndFirstAxisBaseSize = extraInfo.vec2S1BaseSize;
-            nz2NdInfo.ndFirstAxisLoopSize = extraInfo.vec2S1RealSize;
-            nz2NdInfo.ndLastAxis = this->dSizeAlign16;
-            nz2NdInfo.loopIdx = s1oIdx;
-            event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
-            SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
-            WaitFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
-            LocalTensor<T> tempUb = this->stage1PongBuf.template Get<T>();
-            NzToNd(nz2NdInfo, this->mm2Res[extraInfo.taskIdMod2], tempUb, stage2BufTensor);
-            mm2ResCalcSize = extraInfo.vec2S1RealSize * dSizeAlign16;
-            mm2ResOffset = s1oIdx * extraInfo.vec2S1BaseSize * dSizeAlign16;
-            pipe_barrier(PIPE_V);
-        } else {
-            if (likely(this->dSizeAlign16 == this->dSize)) {
-                DataCopy(stage2BufTensor, this->mm2Res[extraInfo.taskIdMod2][mm2ResOffset], mm2ResCalcSize);
-            } else {
-                DataCopyParams dataCopyParams;
-                DataCopyPadParams dataCopyPadParams;
-                dataCopyParams.blockCount = extraInfo.vec2S1RealSize;
-                dataCopyParams.dstStride = 0;
-                dataCopyParams.srcStride = 0;
-                dataCopyParams.blockLen = this->dSize * 4;
-                dataCopyPadParams.rightPadding = this->dSizeAlign16 - this->dSize;
-                dataCopyPadParams.paddingValue = 0;
-                if (dataCopyPadParams.rightPadding > blockSize) {
-                    // 8对齐场景，内部vector需要16对齐，我们在data copy的时候需要手动补0
-                    dataCopyPadParams.rightPadding -= blockSize;
-                    dataCopyParams.dstStride = 1;
-                    Duplicate<T>(stage2BufTensor[dAlign8], 0, blockSize, extraInfo.vec2S1RealSize, 0,
-                                 this->dSizeAlign16 * sizeof(T) / blockBytes);
-                }
-                DataCopyPad(stage2BufTensor, this->mm2Res[extraInfo.taskIdMod2][mm2ResOffset], dataCopyParams,
-                            dataCopyPadParams);
-                mm2ResCalcSize = extraInfo.vec2S1RealSize * dSizeAlign16;
-                mm2ResOffset = s1oIdx * extraInfo.vec2S1BaseSize * dSizeAlign16;
-            }
+        
+        DataCopyParams dataCopyParams;
+        DataCopyPadParams dataCopyPadParams;
+        dataCopyParams.blockCount = extraInfo.vec2S1RealSize;
+        dataCopyParams.dstStride = 0;
+        dataCopyParams.srcStride = 0;
+        dataCopyParams.blockLen = this->dSize * 4;
+        dataCopyPadParams.rightPadding = this->dSizeAlign16 - this->dSize;
+        dataCopyPadParams.paddingValue = 0;
+        if (dataCopyPadParams.rightPadding > blockSize) {
+            // 8对齐场景，内部vector需要16对齐，我们在data copy的时候需要手动补0
+            dataCopyPadParams.rightPadding -= blockSize;
+            dataCopyParams.dstStride = 1;
+            Duplicate<T>(stage2BufTensor[dAlign8], 0, blockSize, extraInfo.vec2S1RealSize, 0,
+                            this->dSizeAlign16 * sizeof(T) / blockBytes);
         }
+        DataCopyPad(stage2BufTensor, this->mm2Res[extraInfo.taskIdMod2][mm2ResOffset], dataCopyParams,
+                    dataCopyPadParams);
+        mm2ResCalcSize = extraInfo.vec2S1RealSize * dSizeAlign16;
+        mm2ResOffset = s1oIdx * extraInfo.vec2S1BaseSize * dSizeAlign16;
+    }
 
         if (vec2LoopLimit > 1) {
             SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
