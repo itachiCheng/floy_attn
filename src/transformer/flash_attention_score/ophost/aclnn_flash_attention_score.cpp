@@ -76,7 +76,7 @@ struct FaShapeInfo {
     FVector<int64_t, DIM_NUM_4> perm_out;
     FVector<int64_t, DIM_NUM_4> reshapedQueryShape;
     FVector<int64_t, DIM_NUM_4> reshapedKeyValueShape;
-
+    FVector<int64_t, DIM_NUM_4> reshapedAttenMaskShape;
     bool needPad = false;
     bool needTranspose = false;
     bool needReshape = false;
@@ -135,11 +135,11 @@ void AnalysisAxisForBnsd(const Shape &qShape, const Shape &kShape, FaShapeInfo &
 {
     shapeInfo.inputLayout = InputLayout::BNSD;
     shapeInfo.l0InputLayoutStr = "BNSD";
-    shapeInfo.axes.b = qShape[0];
-    shapeInfo.axes.n2 = kShape[1];
-    shapeInfo.axes.s1 = qShape[2];
-    shapeInfo.axes.s2 = kShape[2];
-    shapeInfo.axes.d = qShape[3];
+    shapeInfo.axes.b = qShape[0]*qShape[1];
+    shapeInfo.axes.n2 = kShape[2];
+    shapeInfo.axes.s1 = qShape[3];
+    shapeInfo.axes.s2 = kShape[3];
+    shapeInfo.axes.d = qShape[4];
 }
 
 aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key, const char *inputLayout, int64_t headNum,
@@ -166,7 +166,7 @@ aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key, const cha
         // query: (S1,B,N1*D)
         // key/value: (S2,B,N2*D)
         AnalysisAxisForSbh(qShape, kShape, shapeInfo);
-    } else if (shapeInfo.dimNum == DIM_NUM_4 && inputLayoutStr == "BNSD") {
+    } else if (inputLayoutStr == "BNSD") {
         // query: (B,N1,S1,D)
         // key/value: (B,N2,S2,D)
         AnalysisAxisForBnsd(qShape, kShape, shapeInfo);
@@ -209,6 +209,41 @@ void SetShapeInfoForBshBsnd(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
             {shapeInfo.axes.b, shapeInfo.axes.s2, shapeInfo.axes.n2, shapeInfo.axes.d});
     }
 }
+
+void SetShapeInfoForBnsd(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
+{
+    // if (alignedH1Size > MAX_STRIDE_S1) {
+    //     shapeInfo.needTranspose = true;
+    //     shapeInfo.needReshape = true;
+    //     shapeInfo.l0InputLayoutStr = "BNSD";
+
+    //     // B,S,N,D -> B,N,S,D
+    //     shapeInfo.perm_in.assign({0, 2, 1, 3});
+    //     // B,N,S,D -> B,S,N,D
+    //     shapeInfo.perm_out.assign(shapeInfo.perm_in.cbegin(), shapeInfo.perm_in.cend());
+    // }
+    // if (shapeInfo.needPad) {
+    //     shapeInfo.needReshape = true;
+    // }
+
+    if (shapeInfo.inputLayout == InputLayout::BNSD) {
+        shapeInfo.needReshape = true;
+        shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s1, shapeInfo.axes.d});
+        shapeInfo.reshapedKeyValueShape.assign(
+            {shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s2, shapeInfo.axes.d});
+        shapeInfo.reshapedAttenMaskShape.assign(
+            {shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s1, shapeInfo.axes.s2});
+    }
+    // if (shapeInfo.needReshape) {
+    //     if (!shapeInfo.needTranspose) {
+    //         shapeInfo.l0InputLayoutStr = "BSND";
+    //     }
+    //     shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.b, shapeInfo.axes.s1, shapeInfo.axes.n1, shapeInfo.axes.d});
+    //     shapeInfo.reshapedKeyValueShape.assign(
+    //         {shapeInfo.axes.b, shapeInfo.axes.s2, shapeInfo.axes.n2, shapeInfo.axes.d});
+    // }
+}
+
 
 void SetShapeInfoForSbh(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
 {
@@ -365,20 +400,22 @@ aclnnStatus AnalysisInput(const aclTensor *query, const aclTensor *key, char *in
     }
 
     int64_t alignedH1Size = shapeInfo.axes.n1 * (shapeInfo.axes.d + shapeInfo.padNum);
-    if (shapeInfo.inputLayout == InputLayout::BSH || shapeInfo.inputLayout == InputLayout::BSND) {
-        SetShapeInfoForBshBsnd(alignedH1Size, shapeInfo);
-    } else if (shapeInfo.inputLayout == InputLayout::SBH) {
-        SetShapeInfoForSbh(alignedH1Size, shapeInfo);
+    // if (shapeInfo.inputLayout == InputLayout::BSH || shapeInfo.inputLayout == InputLayout::BSND) {
+    //     SetShapeInfoForBshBsnd(alignedH1Size, shapeInfo);
+    // } else if (shapeInfo.inputLayout == InputLayout::SBH) {
+    //     SetShapeInfoForSbh(alignedH1Size, shapeInfo);
+    // }
+    if (shapeInfo.inputLayout == InputLayout::BNSD) {
+        SetShapeInfoForBnsd(alignedH1Size, shapeInfo);
     }
-
-    if (!IsNeedPad(shapeInfo, actualSeqQLenOptional, actualSeqKvLenOptional)) {
-        shapeInfo.needPad = false;
-        shapeInfo.padNum = 0;
-        shapeInfo.needReshape = false;
-        if (shapeInfo.inputLayout == InputLayout::BSH) {
-            shapeInfo.l0InputLayoutStr = "BSH";
-        }
-    }
+    // if (!IsNeedPad(shapeInfo, actualSeqQLenOptional, actualSeqKvLenOptional)) {
+    //     shapeInfo.needPad = false;
+    //     shapeInfo.padNum = 0;
+    //     shapeInfo.needReshape = false;
+    //     if (shapeInfo.inputLayout == InputLayout::BSH) {
+    //         shapeInfo.l0InputLayoutStr = "BSH";
+    //     }
+    // }
 
     OP_LOGD("Analysis input success. The analysis result: [needReshape]: %d, [needPad]: %d, [padNum]: %lu,"
             "[needTranspose]: %d.",
@@ -432,7 +469,7 @@ aclnnStatus Contiguous(const aclTensor *&query, const aclTensor *&key, const acl
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
+aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value, const aclTensor *&attenMaskOptional,
                           const struct FaShapeInfo &shapeInfo, aclOpExecutor *executor)
 {
     if (shapeInfo.needReshape) {
@@ -450,6 +487,11 @@ aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key, const 
             executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
             executor);
         CHECK_RET(value != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        attenMaskOptional = l0op::Reshape(
+            attenMaskOptional,
+            executor->AllocIntArray(shapeInfo.reshapedAttenMaskShape.data(), shapeInfo.reshapedAttenMaskShape.size()),
+            executor);
+        CHECK_RET(attenMaskOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
 
     if (shapeInfo.needPad) {
