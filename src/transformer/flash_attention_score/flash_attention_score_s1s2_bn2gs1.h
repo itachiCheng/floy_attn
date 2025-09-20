@@ -506,58 +506,11 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPs
     this->s2BaseN2D = this->s2BaseSize * this->n2D;
     this->s2BaseNratioSize = this->s2BaseSize * this->tilingData->coreParams.nRatio;
     this->s1BaseS2 = this->s1BaseSize * this->tilingData->inputParams.s2Size;
-
-    if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BSH) {
-        // BSH/BSNGD
-        this->s1BaseN2GD = this->s1BaseSize * this->n2GD;
-        this->s2BaseNratioN2D = this->s2BaseN2D * this->tilingData->coreParams.nRatio;
-        this->mm1Ka = this->n2GD;
-        this->mm1Kb = this->n2D;
-        this->mm2Kb = this->n2D;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_SBH) {
-        // SBH/SBNGD
-        this->bN2G = this->tilingData->inputParams.bSize * this->n2G;
-        this->s1BaseBN2GD = s1BaseSize * this->tilingData->inputParams.bSize * this->n2GD;
-        this->s2BaseBN2D = this->tilingData->inputParams.bSize * this->s2BaseN2D;
-        this->s2BaseNratioBN2D = this->s2BaseBN2D * this->tilingData->coreParams.nRatio;
-        this->mm1Ka = this->bN2GD;
-        this->mm1Kb = this->bN2D;
-        this->mm2Kb = this->bN2D;
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BNSD) {
-        // BNSD
-        this->s1BaseD = this->s1BaseSize * this->dSize;
-        this->s2BaseNratioD = this->s2BaseNratioSize * this->dSize;
-        this->mm1Ka = this->dSize;
-        this->mm1Kb = this->dSize;
-        this->mm2Kb = this->dSize;
-    }
-
-    if (this->tilingData->inputParams.pseShapeType == pse1S2) {
-        this->gS2 = this->tilingData->inputParams.gSize * this->tilingData->inputParams.s2Size;
-        this->n2GS2 = this->tilingData->inputParams.n2Size * this->gS2;
-    }
-    if constexpr (hasPse == true) {
-        this->pseInfo.gSize = this->tilingData->inputParams.gSize;
-        this->pseInfo.pseShapeType = this->tilingData->inputParams.pseShapeType;
-        this->pseInfo.pseType = this->tilingData->inputParams.pseType;
-        this->pseInfo.n2G = this->n2G;
-        this->pseInfo.pseBSize = this->tilingData->inputParams.pseBSize;
-        this->pseInfo.s1BaseSize = this->s1BaseSize;
-        this->pseInfo.pseS1Size = this->tilingData->inputParams.pseS1Size;
-        this->pseInfo.pseS2Size = this->tilingData->inputParams.pseS2Size;
-        this->pseInfo.s2BaseNratioSize = this->s2BaseNratioSize;
-        this->pseInfo.pseEncodeType = (uint32_t)this->tilingData->inputParams.pseEncodeType;
-        this->pseInfo.pseAlibiBaseS1 = this->tilingData->coreParams.pseAlibiBaseS1;
-        this->pseInfo.pseAlibiBaseS2 = this->tilingData->coreParams.pseAlibiBaseS2;
-        this->pseInfo.qStartIdx = this->tilingData->inputParams.qStartIdx;
-        this->pseInfo.kvStartIdx = this->tilingData->inputParams.kvStartIdx;
-    }
-    if constexpr (hasDrop == true) {
-        this->dropMaskInfo.gSize = this->tilingData->inputParams.gSize;
-        this->dropMaskInfo.n2G = this->n2G;
-        this->dropMaskInfo.s1BaseSize = this->s1BaseSize;
-        this->dropMaskInfo.s2BaseNratioSize = this->s2BaseNratioSize;
-    }
+    this->s1BaseD = this->s1BaseSize * this->dSize;
+    this->s2BaseNratioD = this->s2BaseNratioSize * this->dSize;
+    this->mm1Ka = this->dSize;
+    this->mm1Kb = this->dSize;
+    this->mm2Kb = this->dSize;
 }
 
 // sparse functions
