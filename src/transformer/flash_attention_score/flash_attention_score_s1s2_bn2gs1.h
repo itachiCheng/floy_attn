@@ -536,22 +536,22 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPs
         this->gS2 = this->tilingData->inputParams.gSize * this->tilingData->inputParams.s2Size;
         this->n2GS2 = this->tilingData->inputParams.n2Size * this->gS2;
     }
-    // if constexpr (hasPse == true) {
-    //     this->pseInfo.gSize = this->tilingData->inputParams.gSize;
-    //     this->pseInfo.pseShapeType = this->tilingData->inputParams.pseShapeType;
-    //     this->pseInfo.pseType = this->tilingData->inputParams.pseType;
-    //     this->pseInfo.n2G = this->n2G;
-    //     this->pseInfo.pseBSize = this->tilingData->inputParams.pseBSize;
-    //     this->pseInfo.s1BaseSize = this->s1BaseSize;
-    //     this->pseInfo.pseS1Size = this->tilingData->inputParams.pseS1Size;
-    //     this->pseInfo.pseS2Size = this->tilingData->inputParams.pseS2Size;
-    //     this->pseInfo.s2BaseNratioSize = this->s2BaseNratioSize;
-    //     this->pseInfo.pseEncodeType = (uint32_t)this->tilingData->inputParams.pseEncodeType;
-    //     this->pseInfo.pseAlibiBaseS1 = this->tilingData->coreParams.pseAlibiBaseS1;
-    //     this->pseInfo.pseAlibiBaseS2 = this->tilingData->coreParams.pseAlibiBaseS2;
-    //     this->pseInfo.qStartIdx = this->tilingData->inputParams.qStartIdx;
-    //     this->pseInfo.kvStartIdx = this->tilingData->inputParams.kvStartIdx;
-    // }
+    if constexpr (hasPse == true) {
+        this->pseInfo.gSize = this->tilingData->inputParams.gSize;
+        this->pseInfo.pseShapeType = this->tilingData->inputParams.pseShapeType;
+        this->pseInfo.pseType = this->tilingData->inputParams.pseType;
+        this->pseInfo.n2G = this->n2G;
+        this->pseInfo.pseBSize = this->tilingData->inputParams.pseBSize;
+        this->pseInfo.s1BaseSize = this->s1BaseSize;
+        this->pseInfo.pseS1Size = this->tilingData->inputParams.pseS1Size;
+        this->pseInfo.pseS2Size = this->tilingData->inputParams.pseS2Size;
+        this->pseInfo.s2BaseNratioSize = this->s2BaseNratioSize;
+        this->pseInfo.pseEncodeType = (uint32_t)this->tilingData->inputParams.pseEncodeType;
+        this->pseInfo.pseAlibiBaseS1 = this->tilingData->coreParams.pseAlibiBaseS1;
+        this->pseInfo.pseAlibiBaseS2 = this->tilingData->coreParams.pseAlibiBaseS2;
+        this->pseInfo.qStartIdx = this->tilingData->inputParams.qStartIdx;
+        this->pseInfo.kvStartIdx = this->tilingData->inputParams.kvStartIdx;
+    }
     if constexpr (hasDrop == true) {
         this->dropMaskInfo.gSize = this->tilingData->inputParams.gSize;
         this->dropMaskInfo.n2G = this->n2G;
@@ -1126,13 +1126,13 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     event_t eventIdMte3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     event_t eventIdDropMte3ToMte2;
-    // if constexpr (hasPse == true) {
-    //     if constexpr (hasDrop == true) {
-    //         if constexpr (!IsSameType<T, INPUT_T>::value) {
-    //             eventIdDropMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
-    //         }
-    //     }
-    // }
+    if constexpr (hasPse == true) {
+        if constexpr (hasDrop == true) {
+            if constexpr (!IsSameType<T, INPUT_T>::value) {
+                eventIdDropMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
+            }
+        }
+    }
     extraInfo.vec1S1RealSize = extraInfo.vec1S1BaseSize;
     for (int32_t loopIdx = 0; loopIdx < extraInfo.realSplitN; loopIdx++) {
         if (loopIdx == extraInfo.realSplitN - 1) {
@@ -1200,11 +1200,11 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         pipe_barrier(PIPE_V);
         if constexpr (!IsSameType<T, INPUT_T>::value) {
             LocalTensor<INPUT_T> stage1CastTensor;
-            // if constexpr (hasPse == true) {
-            //     stage1CastTensor = this->maskTBufPong.template Get<INPUT_T>();
-            // } else {
-            stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
-            // }
+            if constexpr (hasPse == true) {
+                stage1CastTensor = this->maskTBufPong.template Get<INPUT_T>();
+            } else {
+                stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
+            }
             Cast(stage1CastTensor, stage1PingTensor, RoundMode::CAST_ROUND,
                  extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
             SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
@@ -1213,15 +1213,15 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             DataCopy(
                 this->stage1Res[extraInfo.taskIdMod2][loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2AlignedSize],
                 stage1CastTensor, extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-            // if constexpr (hasPse == true) {
-            //     if constexpr (hasDrop == true) {
-            //         if constexpr (!IsSameType<T, INPUT_T>::value) {
-            //             if (loopIdx < extraInfo.realSplitN - 1) {
-            //                 SetFlag<HardEvent::MTE3_MTE2>(eventIdDropMte3ToMte2);
-            //             }
-            //         }
-            //     }
-            // }
+            if constexpr (hasPse == true) {
+                if constexpr (hasDrop == true) {
+                    if constexpr (!IsSameType<T, INPUT_T>::value) {
+                        if (loopIdx < extraInfo.realSplitN - 1) {
+                            SetFlag<HardEvent::MTE3_MTE2>(eventIdDropMte3ToMte2);
+                        }
+                    }
+                }
+            }
         } else {
             SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
             WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
