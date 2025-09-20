@@ -540,49 +540,49 @@ aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key, const 
 aclnnStatus Postprocess(const aclTensor *&l0AttentionOutOut, const aclTensor *attentionOutOut,
                         struct FaShapeInfo &shapeInfo, aclOpExecutor *executor)
 {
-    if (shapeInfo.inputLayout == InputLayout::SBH && shapeInfo.needPad && !shapeInfo.needTranspose) {
-        // (S,B,Hp) -> (S,B,N,Dp)
-        FVector<int64_t, DIM_NUM_4> paddedSBNDShape{shapeInfo.axes.s1, shapeInfo.axes.b, shapeInfo.axes.n1,
-                                                    shapeInfo.axes.d + static_cast<int64_t>(shapeInfo.padNum)};
-        l0AttentionOutOut = l0op::Reshape(
-            l0AttentionOutOut, executor->AllocIntArray(paddedSBNDShape.data(), paddedSBNDShape.size()), executor);
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    }
+    // if (shapeInfo.inputLayout == InputLayout::SBH && shapeInfo.needPad && !shapeInfo.needTranspose) {
+    //     // (S,B,Hp) -> (S,B,N,Dp)
+    //     FVector<int64_t, DIM_NUM_4> paddedSBNDShape{shapeInfo.axes.s1, shapeInfo.axes.b, shapeInfo.axes.n1,
+    //                                                 shapeInfo.axes.d + static_cast<int64_t>(shapeInfo.padNum)};
+    //     l0AttentionOutOut = l0op::Reshape(
+    //         l0AttentionOutOut, executor->AllocIntArray(paddedSBNDShape.data(), paddedSBNDShape.size()), executor);
+    //     CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    // }
 
-    if (shapeInfo.needTranspose) {
-        auto perm = executor->AllocIntArray(shapeInfo.perm_out.data(), shapeInfo.perm_out.size());
-        l0AttentionOutOut = l0op::Transpose(l0AttentionOutOut, perm, executor);
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    }
+    // if (shapeInfo.needTranspose) {
+    //     auto perm = executor->AllocIntArray(shapeInfo.perm_out.data(), shapeInfo.perm_out.size());
+    //     l0AttentionOutOut = l0op::Transpose(l0AttentionOutOut, perm, executor);
+    //     CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    // }
 
-    if (shapeInfo.needPad) {
-        // (B,S,N,D)
-        // (S,B,N,D)
-        // (B,N,S,D)
-        // (T,N,D)
-        FVector<int64_t, MAX_DIM_NUM> sizeVec = ToShapeVector(l0AttentionOutOut->GetViewShape());
-        sizeVec.back() -= shapeInfo.padNum;
-        if (shapeInfo.inputLayout == InputLayout::TND) {
-            FVector<int64_t, DIM_NUM_3> offsetVec(DIM_NUM_3, 0);
-            l0AttentionOutOut =
-                l0op::Slice(l0AttentionOutOut, executor->AllocIntArray(offsetVec.data(), offsetVec.size()),
-                            executor->AllocIntArray(sizeVec.data(), sizeVec.size()), executor);
-        } else {
-            FVector<int64_t, DIM_NUM_4> offsetVec(DIM_NUM_4, 0);
-            l0AttentionOutOut =
-                l0op::Slice(l0AttentionOutOut, executor->AllocIntArray(offsetVec.data(), offsetVec.size()),
-                            executor->AllocIntArray(sizeVec.data(), sizeVec.size()), executor);
-        }
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    }
+    // if (shapeInfo.needPad) {
+    //     // (B,S,N,D)
+    //     // (S,B,N,D)
+    //     // (B,N,S,D)
+    //     // (T,N,D)
+    //     FVector<int64_t, MAX_DIM_NUM> sizeVec = ToShapeVector(l0AttentionOutOut->GetViewShape());
+    //     sizeVec.back() -= shapeInfo.padNum;
+    //     if (shapeInfo.inputLayout == InputLayout::TND) {
+    //         FVector<int64_t, DIM_NUM_3> offsetVec(DIM_NUM_3, 0);
+    //         l0AttentionOutOut =
+    //             l0op::Slice(l0AttentionOutOut, executor->AllocIntArray(offsetVec.data(), offsetVec.size()),
+    //                         executor->AllocIntArray(sizeVec.data(), sizeVec.size()), executor);
+    //     } else {
+    //         FVector<int64_t, DIM_NUM_4> offsetVec(DIM_NUM_4, 0);
+    //         l0AttentionOutOut =
+    //             l0op::Slice(l0AttentionOutOut, executor->AllocIntArray(offsetVec.data(), offsetVec.size()),
+    //                         executor->AllocIntArray(sizeVec.data(), sizeVec.size()), executor);
+    //     }
+    //     CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    // }
 
-    if (shapeInfo.needReshape) {
-        auto attentionOutOutShape = ToShapeVector(attentionOutOut->GetViewShape());
-        l0AttentionOutOut =
-            l0op::Reshape(l0AttentionOutOut,
-                          executor->AllocIntArray(attentionOutOutShape.data(), attentionOutOutShape.size()), executor);
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    }
+    // if (shapeInfo.needReshape) {
+    auto attentionOutOutShape = ToShapeVector(attentionOutOut->GetViewShape());
+    l0AttentionOutOut =
+        l0op::Reshape(l0AttentionOutOut,
+                        executor->AllocIntArray(attentionOutOutShape.data(), attentionOutOutShape.size()), executor);
+    CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    // }
     return ACLNN_SUCCESS;
 }
 
@@ -656,6 +656,10 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
     auto l0AttentionOutOut = l0FlashAttentionScoreOuts[3];
 
     CHECK_RET(Postprocess(l0AttentionOutOut, attentionOutOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
+              ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(Postprocess(l0SoftmaxMaxOut, softmaxMaxOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
+              ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(Postprocess(l0SoftmaxSumOut, softmaxSumOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
