@@ -568,68 +568,8 @@ __aicore__ inline void
 FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
                               enableL1Reuse>::GetS2LoopRange(bool useNext, bool lastNotPair)
 {
-    // 计算S2的循环范围相关参数: 后续可 使用static_cast<uint32_t>优化scale性能
-    if (this->tilingData->inputParams.sparseType == static_cast<uint8_t>(SparseModeEnum::CAUSAL)) { // 下三角
-        this->s2StartIdx = 0;
-        this->s2EndIdx = Min((this->s1oIdx + 1) * this->s1BaseSize, this->s2Size);
-        if constexpr (enableL1Reuse) {
-            if (useNext) {
-                this->nextS2EndIdx = Min((this->s1oIdx + 2) * this->s1BaseSize, this->s2Size);
-            }
-        }
-    } else if (this->tilingData->inputParams.sparseType ==
-               static_cast<uint8_t>(SparseModeEnum::BAND)) { // 对角线往外扩散场景, s1和s2可能不同
-        this->s2StartIdx = Max((this->s1oIdx - this->l1ReuseBlockMod2 + static_cast<int64_t>(lastNotPair)) *
-                                       this->tilingData->coreParams.s1BaseSize -
-                                   this->tilingData->coreParams.s1SparseValidSize,
-                               0);
-        this->s2EndIdx =
-            Min((this->s1oIdx + 1) * this->s1BaseSize + this->tilingData->coreParams.s2SparseValidSize, this->s2Size);
-        if constexpr (enableL1Reuse) {
-            if (useNext) {
-                this->nextS2EndIdx =
-                    Min((this->s1oIdx + 2) * this->s1BaseSize + this->tilingData->coreParams.s2SparseValidSize,
-                        this->s2Size);
-            }
-        }
-    } else if (this->tilingData->inputParams.sparseType == static_cast<uint8_t>(SparseModeEnum::PREFIX)) {
-        this->s2StartIdx = 0;
-        this->s2EndIdx = Max(s1BaseSize * (this->s1oIdx + 1) - this->s1Size + this->s2Size,
-                             ((__gm__ int64_t *)this->prefixNAddr)[this->boIdx]);
-        if constexpr (enableL1Reuse) {
-            if (useNext) {
-                this->nextS2EndIdx =
-                    Max(s1BaseSize * (this->s1oIdx + 2) - this->s1Size + this->s2Size,
-                        ((__gm__ int64_t *)this->prefixNAddr)[this->boIdx]);
-            }
-        }
-    } else { // 其它场景, 如无attention mask
-        this->s2StartIdx = 0;
-        this->s2EndIdx = this->s2Size;
-        return;
-    }
-
-    if constexpr (enableL1Reuse) {
-        if (useNext && (CeilDiv(this->s2EndIdx - this->s2StartIdx, this->s2BaseNratioSize)) !=
-                           CeilDiv(nextS2EndIdx - this->s2StartIdx, this->s2BaseNratioSize)) {
-            this->s2EndIdx = nextS2EndIdx;
-        }
-    }
-    if (this->tilingData->inputParams.sparseType == static_cast<uint8_t>(SparseModeEnum::BAND)) {
-        // s1baseSize行都无效时, 将startIdx设置为0, endIdx设置为S2realSize
-        if (this->s2EndIdx - this->s2StartIdx <= 0) {
-            this->s2StartIdx = 0;
-            this->s2EndIdx = Min(this->s2Size, 128L);
-        }
-    } else if (this->tilingData->inputParams.sparseType == static_cast<uint8_t>(SparseModeEnum::PREFIX)) {
-        if (this->s2EndIdx <= this->s2StartIdx) {
-            // 无效行场景至少要算一个基本块
-            this->s2EndIdx = 128L;
-        } else {
-            this->s2EndIdx = CeilDiv(this->s2EndIdx, s2BaseSize) * s2BaseSize;
-        }
-        this->s2EndIdx = Min(this->s2EndIdx, this->s2Size);
-    }
+    this->s2StartIdx = 0;
+    this->s2EndIdx = this->s2Size;
     return;
 }
 
