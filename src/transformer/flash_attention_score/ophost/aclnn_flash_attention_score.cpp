@@ -644,7 +644,7 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, prefixOptional,
-        scaleValueOptional, keepProbOptional, preTokensOptional, nextTokensOptional, headNum,
+        nullptr, nullptr, nullptr, nullptr, scaleValueOptional, keepProbOptional, preTokensOptional, nextTokensOptional, headNum,
         shapeInfo.l0InputLayoutStr.c_str(), innerPreciseOptional, sparseModeOptional, PSE_TYPE_V1, l0Executor);
 
     CHECK_RET(l0FlashAttentionScoreOuts[0] != nullptr, ACLNN_ERR_INNER_NULLPTR);
@@ -682,6 +682,7 @@ aclnnStatus aclnnFlashAttentionScore(void *workspace, uint64_t workspaceSize, ac
     // 固定写法，调用框架能力，完成计算
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
+
 }  // namespace
 
 #ifdef __cplusplus
