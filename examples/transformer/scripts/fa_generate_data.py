@@ -81,7 +81,7 @@ if case_name == 'test_flash_attention_score':
     key = np.random.uniform(-1, 1, (B, H, N, K, D)).astype(dtype)
     value = np.random.uniform(-1, 1, (B, H, N, K, D)).astype(dtype)
     # mask = np.concatenate((np.ones((B, H, N, M, K - K//2)).astype(np.float32), np.zeros((B, H, N, M, K//2)).astype(np.float32)), axis=-1)
-    mask = np.ones((B, H, N, M, K)).astype(np.float32)
+    mask = np.zeros((B, H, N, M, K)).astype(np.float32)
     evo_mask = 1 - mask.astype(np.uint8)
     query.tofile('query.bin')
     key.tofile('key.bin')
