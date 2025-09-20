@@ -1041,17 +1041,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
 {
     if constexpr (hasAtten == true) {
         int64_t causalOrNextFactor = deltaCausalOrNext - extraInfo.s2AlignedSize;
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-                static_cast<uint8_t>(AttenMaskCompressMode::LEFT_UP_CAUSAL_MODE) ||
-            this->tilingData->inputParams.attenMaskCompressMode ==
-                static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_MODE)) {
-            if (causalOrNextFactor >= 0) {
-                this->attenMaskComputeMode = AttenMaskComputeMode::NO_NEED_COMPUTE_MODE;
-            } else {
-                this->attenMaskComputeMode = AttenMaskComputeMode::CAUSAL_OR_NEXT_ONLY_MODE;
-            }
-            return;
-        }
         return;
     }
 }
@@ -1401,7 +1390,7 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
         WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
         int64_t dAlign8 = (this->dSize + 7) / 8 * 8;
-        
+
         DataCopyParams dataCopyParams;
         DataCopyPadParams dataCopyPadParams;
         dataCopyParams.blockCount = extraInfo.vec2S1RealSize;
@@ -1573,25 +1562,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     int64_t dstStride = 0;
     int64_t attenOutOffset = this->dSize;
     int64_t datacopyOffset = this->dSize;
-
-    if constexpr (layOutType == LayOutTypeEnum::LAYOUT_BSH) {
-        datacopyOffset = this->n2GD;
-        attenOutOffset = this->n2GD;
-        dstStride = (this->tilingData->inputParams.n2Size * this->tilingData->inputParams.gSize - 1) * this->dSize *
-                    sizeof(INPUT_T);
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_SBH) {
-        datacopyOffset = this->bN2G * this->dSize;
-        attenOutOffset = this->bN2GD;
-        dstStride = (this->tilingData->inputParams.bSize * this->tilingData->inputParams.n2Size *
-                         this->tilingData->inputParams.gSize -
-                     1) *
-                    this->dSize * sizeof(INPUT_T);
-    } else if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-        datacopyOffset = this->n2GD;
-        attenOutOffset = this->n2GD;
-        dstStride = (this->tilingData->inputParams.n2Size * this->tilingData->inputParams.gSize - 1) * this->dSize *
-                    sizeof(INPUT_T);
-    }
 
     // dataCopyParams.dstStride类型定义uint16_t，65535是其最大值
     if (likely(dstStride <= 65535)) {
