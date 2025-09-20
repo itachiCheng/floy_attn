@@ -1079,13 +1079,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     event_t eventIdMte3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     event_t eventIdDropMte3ToMte2;
-    if constexpr (hasPse == true) {
-        if constexpr (hasDrop == true) {
-            if constexpr (!IsSameType<T, INPUT_T>::value) {
-                eventIdDropMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
-            }
-        }
-    }
     extraInfo.vec1S1RealSize = extraInfo.vec1S1BaseSize;
     for (int32_t loopIdx = 0; loopIdx < extraInfo.realSplitN; loopIdx++) {
         if (loopIdx == extraInfo.realSplitN - 1) {
@@ -1156,11 +1149,8 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         pipe_barrier(PIPE_V);
         if constexpr (!IsSameType<T, INPUT_T>::value) {
             LocalTensor<INPUT_T> stage1CastTensor;
-            if constexpr (hasPse == true) {
-                stage1CastTensor = this->maskTBufPong.template Get<INPUT_T>();
-            } else {
-                stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
-            }
+
+            stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
             Cast(stage1CastTensor, stage1PingTensor, RoundMode::CAST_ROUND,
                  extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
             SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
@@ -1169,15 +1159,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             DataCopy(
                 this->stage1Res[extraInfo.taskIdMod2][loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2AlignedSize],
                 stage1CastTensor, extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
-            if constexpr (hasPse == true) {
-                if constexpr (hasDrop == true) {
-                    if constexpr (!IsSameType<T, INPUT_T>::value) {
-                        if (loopIdx < extraInfo.realSplitN - 1) {
-                            SetFlag<HardEvent::MTE3_MTE2>(eventIdDropMte3ToMte2);
-                        }
-                    }
-                }
-            }
         } else {
             SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
             WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);

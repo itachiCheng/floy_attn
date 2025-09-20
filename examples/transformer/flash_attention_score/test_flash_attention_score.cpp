@@ -261,6 +261,7 @@ int main(int argc, char **argv)
     int64_t M = data[3];
     int64_t K = data[4];
     int64_t D = data[5];
+    int64_t headNum = N;
     
     // 五维数据修改
     std::vector<int64_t> qShape = {B, H, N, M, D};
