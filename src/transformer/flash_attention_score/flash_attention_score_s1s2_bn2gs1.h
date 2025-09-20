@@ -1023,7 +1023,9 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         pipe_barrier(PIPE_V);
         if constexpr (!IsSameType<T, INPUT_T>::value) {
             LocalTensor<INPUT_T> stage1CastTensor;
-
+            if (0 == this->blockIdx) {
+                AscendC::printf("Test1");
+            }
             stage1CastTensor = this->pseTBuf.template Get<INPUT_T>();
             Cast(stage1CastTensor, stage1PingTensor, RoundMode::CAST_ROUND,
                  extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
@@ -1034,6 +1036,9 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
                 this->stage1Res[extraInfo.taskIdMod2][loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2AlignedSize],
                 stage1CastTensor, extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
         } else {
+            if (0 == this->blockIdx) {
+                AscendC::printf("Test2");
+            }
             SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
             WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
             DataCopy(
