@@ -161,10 +161,6 @@ protected:
     __aicore__ inline void Bmm2DataCopyOut(SplitExtraInfo &extraInfo, int64_t s1oIdx, int64_t mm2ResCalcSize);
     __aicore__ inline void SoftmaxDataCopyOut(SplitExtraInfo &extraInfo, int64_t s1oIdx);
 
-    // sparse 用函数
-    __aicore__ inline void GetS1LoopRange(int64_t &multiCoreInnerOffset, int64_t &multiCoreInnerLimit);
-    __aicore__ inline void GetS2LoopRange(bool useNext, bool lastNotPair);
-
     uint32_t s1BaseSize;
     uint32_t s2BaseSize;
     uint32_t dSize;
@@ -513,66 +509,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPs
     this->mm2Kb = this->dSize;
 }
 
-// sparse functions
-template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
-          typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
-__aicore__ inline void
-FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
-                              enableL1Reuse>::GetS1LoopRange(int64_t &multiCoreInnerOffset,
-                                                             int64_t &multiCoreInnerLimit)
-{
-    // 计算sparse场景下s1的循环范围
-    if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-        // sparse场景下负载均衡后每个核获取的结果
-        multiCoreInnerOffset = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx];
-        if (likely((this->tilingData->multiCoreParams.coreNum - 1) > this->blockIdx)) {
-            multiCoreInnerLimit = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx + 1];
-        } else {
-            multiCoreInnerLimit = this->tilingData->multiCoreParams.totalSize;
-        }
-    } else {
-        if (this->tilingData->inputParams.sparseType > 0) {
-            if constexpr (enableL1Reuse) {
-                // AIV0 & AIV1交替执行
-                if (this->l1ReuseBlockMod2 == 0) {
-                    multiCoreInnerOffset = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx];
-                    if (likely((this->tilingData->multiCoreParams.coreNum - 2) > this->blockIdx)) {
-                        multiCoreInnerLimit = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx + 2];
-                    } else {
-                        multiCoreInnerLimit = this->tilingData->multiCoreParams.totalSize;
-                    }
-                } else {
-                    multiCoreInnerOffset = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx - 1];
-                    if (likely((this->tilingData->multiCoreParams.coreNum - 1) > this->blockIdx)) {
-                        multiCoreInnerLimit = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx + 1];
-                    } else {
-                        multiCoreInnerLimit = this->tilingData->multiCoreParams.totalSize;
-                    }
-                }
-            } else {
-                // sparse场景下负载均衡后每个核获取的结果
-                multiCoreInnerOffset = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx];
-                if (likely((this->tilingData->multiCoreParams.coreNum - 1) > this->blockIdx)) {
-                    multiCoreInnerLimit = this->tilingData->multiCoreParams.sparseStartIdx[this->blockIdx + 1];
-                } else {
-                    multiCoreInnerLimit = this->tilingData->multiCoreParams.totalSize;
-                }
-            }
-        }
-    }
-}
-
-template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
-          typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
-__aicore__ inline void
-FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T, isBasicBlock, bmm1Format,
-                              enableL1Reuse>::GetS2LoopRange(bool useNext, bool lastNotPair)
-{
-    this->s2StartIdx = 0;
-    this->s2EndIdx = this->s2Size;
-    return;
-}
-
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
           typename T, bool isBasicBlock, CubeFormat bmm1Format, bool enableL1Reuse>
 __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, INPUT_T, T,
@@ -588,8 +524,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPs
     if (this->tilingData->multiCoreParams.totalSize < multiCoreInnerLimit) {
         multiCoreInnerLimit = this->tilingData->multiCoreParams.totalSize;
     }
-    // 计算sparse场景下s1的循环范围
-    this->GetS1LoopRange(multiCoreInnerOffset, multiCoreInnerLimit);
 
     SplitExtraInfo extraInfo[3];
     int64_t taskId = 0;
@@ -659,7 +593,8 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPs
                         useNext = ((s1InnerIdx != realS1EndIdx - 2) || !needFakePair) && blockMod2Equal0;
                     }
                     this->ComputeAxisIdx(curMultiCoreInnerOffset);
-                    this->GetS2LoopRange(useNext, lastNotPair);
+                    this->s2StartIdx = 0;
+                    this->s2EndIdx = this->s2Size;
 
                     s2LoopLimit = CeilDiv(this->s2EndIdx - this->s2StartIdx, s2BaseNratioSize) - 1;
                     multiCorePingPong = pingPongCount / 2;
@@ -726,8 +661,9 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPs
             if (notLastTwoLoop) {
                 this->ComputeAxisIdx(multiCoreInnerIdx);
 
-                // s2轴循环计数, 支持sparse和非sparse场景
-                this->GetS2LoopRange(false, false);
+                this->s2StartIdx = 0;
+                this->s2EndIdx = this->s2Size;
+
                 s2LoopLimit = CeilDiv(this->s2EndIdx - this->s2StartIdx, s2BaseNratioSize) - 1;
             } else {
                 s2LoopLimit = 0;
