@@ -14,8 +14,6 @@
  */
 
 #include "kernel_operator.h"
-// #include "flash_attention_score_empty_tensor.h"
-#include "flash_attention_score_drop_mask_adapter.h"
 #include "flash_attention_score_s1s2_bn2gs1.h"
 #include "flash_attention_score_s1_bn2gs1.h"
 #include "flash_attention_score_bn2gs1s2_b.h"
@@ -74,94 +72,36 @@ using namespace AscendC;
 #define INVOKE_FA_GENERAL_OP_IMPL(templateClass, ...)                                                                  \
     do {                                                                                                               \
         __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                            \
-        COPY_TILING_DATA(tiling);                                                                                      \
-        if (tilingData->inputParams.needDropMaskOp) {                                                                  \
-            FlashAttentionScoreDropMaskAdapter dropMaskAdapter;                                                        \
-            dropMaskAdapter.Init(dropMask, user, tilingData, &tPipe);                                                  \
-            dropMaskAdapter.Process();                                                                                 \
-            tPipe.Reset();                                                                                             \
-            templateClass<__VA_ARGS__> op;                                                                             \
-            REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling);                 \
-            op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
-                    softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
-            op.Process();                                                                                              \
-        } else {                                                                                                       \
-            templateClass<__VA_ARGS__> op;                                                                             \
-            REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling);                 \
-            op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
-                    softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
-            op.Process();                                                                                              \
-        }                                                                                                              \
+        COPY_TILING_DATA(tiling);                                                                                      \                                                                                                   \
+        templateClass<__VA_ARGS__> op;                                                                             \
+        REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling);                 \
+        op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
+                softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
+        op.Process();                                                                                              \
     } while (0)
 
 #define INVOKE_FA_GENERAL_OP_IMPL_BMM1NZ(templateClass, ...)                                                           \
     do {                                                                                                               \
         __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                            \
-        COPY_TILING_DATA(tiling);                                                                                      \
-        if (tilingData->inputParams.needDropMaskOp) {                                                                  \
-            FlashAttentionScoreDropMaskAdapter dropMaskAdapter;                                                        \
-            dropMaskAdapter.Init(dropMask, user, tilingData, &tPipe);                                                  \
-            dropMaskAdapter.Process();                                                                                 \
-            tPipe.Destroy();                                                                                           \
-            TPipe tPipeOp;                                                                                             \
-            templateClass<__VA_ARGS__> op;                                                                             \
-            REGIST_MATMUL_OBJ(&tPipeOp, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm1Nz, bmm1tiling, op.bmm2,     \
-                              bmm2tiling);                                                                             \
-            op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
-                    softmaxOut, attentionOut, user, tilingData, &tPipeOp);                                             \
-            op.Process();                                                                                              \
-        } else {                                                                                                       \
-            templateClass<__VA_ARGS__> op;                                                                             \
-            REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm1Nz, bmm1tiling, op.bmm2,       \
-                              bmm2tiling);                                                                             \
-            op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
-                    softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
-            op.Process();                                                                                              \
-        }                                                                                                              \
+        COPY_TILING_DATA(tiling);                                                                                      \                                                                                                  \
+        templateClass<__VA_ARGS__> op;                                                                             \
+        REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm1Nz, bmm1tiling, op.bmm2,       \
+                            bmm2tiling);                                                                             \
+        op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
+                softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
+        op.Process();                                                                                              \
     } while (0)
 
 #define INVOKE_FA_GENERAL_OP_IMPL_BMM2NZ(templateClass, ...)                                                           \
     do {                                                                                                               \
         __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                            \
-        COPY_TILING_DATA(tiling);                                                                                      \
-        if (tilingData->inputParams.needDropMaskOp) {                                                                  \
-            FlashAttentionScoreDropMaskAdapter dropMaskAdapter;                                                        \
-            dropMaskAdapter.Init(dropMask, user, tilingData, &tPipe);                                                  \
-            dropMaskAdapter.Process();                                                                                 \
-            tPipe.Destroy();                                                                                           \
-            TPipe tPipeOp;                                                                                             \
-            templateClass<__VA_ARGS__> op;                                                                             \
-            REGIST_MATMUL_OBJ(&tPipeOp, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling, op.bmm2Nz,       \
-                              bmm2tiling);                                                                             \
-            op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
-                    softmaxOut, attentionOut, user, tilingData, &tPipeOp);                                             \
-            op.Process();                                                                                              \
-        } else {                                                                                                       \
-            templateClass<__VA_ARGS__> op;                                                                             \
-            REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling, op.bmm2Nz,       \
-                              bmm2tiling);                                                                             \
-            op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
-                    softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
-            op.Process();                                                                                              \
-        }                                                                                                              \
-    } while (0)
-
-#define INVOKE_FA_GENERAL_OP_IMPL_VAR_LEN(templateClass, ...)                                                          \
-    do {                                                                                                               \
-        COPY_TILING_DATA(tiling);                                                                                      \
-        __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                            \
-        if (tilingData->inputParams.needDropMaskOp) {                                                                  \
-            FlashAttentionScoreDropMaskAdapter dropMaskAdapter;                                                        \
-            dropMaskAdapter.Init(dropMask, user, tilingData, &tPipe);                                                  \
-            dropMaskAdapter.Process();                                                                                 \
-        }                                                                                                              \
-        tPipe.Reset();                                                                                                 \
-        templateClass<__VA_ARGS__> op;                                                                                 \
-        REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm1Nz, bmm1tiling, op.bmm2,           \
-                          bmm2tiling);                                                                                 \
-        op.UnpackInit(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, actualSeqLengths,              \
-                      actualSeqLengthsKv, softmaxMax, softmaxSum, softmaxOut, attentionOut, user, tilingData, &tPipe); \
-        op.Process();                                                                                                  \
+        COPY_TILING_DATA(tiling);                                                                                      \                                                                                            \
+        templateClass<__VA_ARGS__> op;                                                                             \
+        REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, bmm1tiling, op.bmm2, bmm2tiling, op.bmm2Nz,       \
+                            bmm2tiling);                                                                             \
+        op.Init(query, key, value, pse, dropMask, paddingMask, prefix, attenMask, softmaxMax, softmaxSum,          \
+                softmaxOut, attentionOut, user, tilingData, &tPipe);                                               \
+        op.Process();                                                                                              \
     } while (0)
 
 #endif
@@ -176,25 +116,6 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
 {
     TPipe tPipe;
     set_mask_norm();
-
-    // if (TILING_KEY_IS(90) || TILING_KEY_IS(92) || TILING_KEY_IS(94)) {
-    //     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreTilingData, tiling_data_in, tiling);
-    //     const FlashAttentionScoreTilingData *__restrict tiling_data = &tiling_data_in;
-    //     if (TILING_KEY_IS(90)) {
-    //         FlashAttentionScoreEmptyTensor<half> op;
-    //         op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
-    //         op.Process();
-    //     } else if (TILING_KEY_IS(92)) {
-    //         FlashAttentionScoreEmptyTensor<float> op;
-    //         op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
-    //         op.Process();
-    //     } else if (TILING_KEY_IS(94)) {
-    //         FlashAttentionScoreEmptyTensor<bfloat16_t> op;
-    //         op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);
-    //         op.Process();
-    //     }
-    //     return;
-    // }
 
 #if (ORIG_DTYPE_QUERY == DT_FLOAT16)             // 3
     if (TILING_KEY_IS(10000000000220130943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION
