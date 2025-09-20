@@ -1166,50 +1166,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             Muls(stage1PingTensor, actualUseTensor, static_cast<T>(this->tilingData->inputParams.scaleValue),
                  extraInfo.vec1S1RealSize * extraInfo.s2AlignedSize);
         }
-        // if constexpr (hasPse == true) {
-        //     this->pseInfo.loopIdx = loopIdx;
-        //     this->pseInfo.s2StartIdx = extraInfo.s2StartIdx;
-        //     this->pseInfo.s2LoopCount = extraInfo.s2LoopCount;
-        //     this->pseInfo.bSSOffset = extraInfo.attenB1SSOffset;
-        //     this->pseInfo.n2oIdx = extraInfo.n2oIdx;
-        //     this->pseInfo.s1Size = extraInfo.s1Size;
-        //     this->pseInfo.s2Size = extraInfo.s2Size;
-        //     this->pseInfo.goIdx = extraInfo.goIdx;
-        //     this->pseInfo.s1oIdx = extraInfo.s1oIdx;
-        //     this->pseInfo.vec1S1BaseSize = extraInfo.vec1S1BaseSize;
-        //     this->pseInfo.s2SizeAcc = extraInfo.s2SizeAcc;
-        //     this->pseInfo.boIdx = extraInfo.boIdx;
-        //     this->pseInfo.s2AlignedSize = extraInfo.s2AlignedSize;
-        //     this->pseInfo.vec1S1RealSize = extraInfo.vec1S1RealSize;
-        //     this->pseInfo.s2RealSize = extraInfo.s2RealSize;
-        //     this->pseInfo.needCast = true;
-        //     bool innerAlibiFlag = false; // alibi核内生成相关配置，仅在LAYOUT=TND，SparseMode=8时生效
-        //     if constexpr (layOutType == LayOutTypeEnum::LAYOUT_TND) {
-        //         if (this->tilingData->inputParams.sparseType == static_cast<uint8_t>(SparseModeEnum::BAND_LEFT_UP_CAUSAL) && this->pseInfo.boIdx != 0) {
-        //             innerAlibiFlag = true;
-        //         }
-        //     }
-
-        //     if (this->pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-        //         this->pseInfo.pseType == (uint32_t)PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
-        //         LocalTensor<half> pseUb = this->pseTBuf.template Get<half>();
-        //         if (innerAlibiFlag) {
-        //             this->pseInfo.kvStartIdx = 0;
-        //             this->pseInfo.qStartIdx = 0;
-        //         }
-        //         PseSlopeCopyIn<T, hasPse>(commonTBuf, pseUb, this->pseSlope, this->pseAlibiGm, this->pseInfo);
-        //     } else {
-        //         LocalTensor<INPUT_T> pseUb = this->pseTBuf.template Get<INPUT_T>();
-        //         PseCopyIn<INPUT_T, T, layOutType, hasPse>(commonTBuf, pseUb, this->pseGm, this->pseInfo);
-        //         // FP32场景，需要等PSE输入搬完再启动计算
-        //         if constexpr (IsSameType<INPUT_T, float>::value) {
-        //             SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-        //             WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-        //         }
-        //     }
-        //     pipe_barrier(PIPE_V);
-        //     PseCompute<T, hasPse>(this->tilingData->inputParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE ? stage1PingTensor : actualUseTensor, commonTBuf, this->pseInfo);
-        // }
         if (this->tilingData->inputParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
             pipe_barrier(PIPE_V);
             Muls(stage1PingTensor, actualUseTensor, static_cast<T>(this->tilingData->inputParams.scaleValue),
@@ -1228,35 +1184,35 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
                 this->ComputeAttenMask(shapeInfo, stage1PingTensor, attenMaskUb, maskType, eventIdMte2ToV);
             }
 
-            if (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_AND_NEXT_MODE ||
-                this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
-                event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
-                SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
-                WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
-                SetFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
-                WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
-                this->CopyInAttenMask(extraInfo, loopIdx, this->attenMaskOffsetPre, true);
-                LocalTensor<uint8_t> secondTimeMaskUb;
-                uint8_t maskType;
-                if (this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
-                    int32_t alignedS2Size = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
-                    int32_t maskNum = extraInfo.vec1S1RealSize * alignedS2Size / 2; // 除2数据量按照uint16类型折半
+            // if (this->attenMaskComputeMode == AttenMaskComputeMode::PRE_AND_NEXT_MODE ||
+            //     this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
+            //     event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
+            //     SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
+            //     WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMte2);
+            //     SetFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
+            //     WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2C);
+            //     this->CopyInAttenMask(extraInfo, loopIdx, this->attenMaskOffsetPre, true);
+            //     LocalTensor<uint8_t> secondTimeMaskUb;
+            //     uint8_t maskType;
+            //     if (this->attenMaskComputeMode == AttenMaskComputeMode::PREFIX_COMPUTE_MODE) {
+            //         int32_t alignedS2Size = CeilDiv(extraInfo.s2RealSize, blockBytes) * blockBytes;
+            //         int32_t maskNum = extraInfo.vec1S1RealSize * alignedS2Size / 2; // 除2数据量按照uint16类型折半
 
-                    secondTimeMaskUb = this->maskTBufPing.template Get<uint8_t>();
-                    LocalTensor<uint8_t> attenMaskPrefixUb = this->pseTBuf.template Get<uint8_t>();
-                    auto attenMaskCasualTmp = secondTimeMaskUb.ReinterpretCast<uint16_t>();
-                    auto attenMaskPrefixUbTmp = attenMaskPrefixUb.ReinterpretCast<uint16_t>();
-                    SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-                    WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-                    And(attenMaskCasualTmp, attenMaskCasualTmp, attenMaskPrefixUbTmp, maskNum);
-                    maskType = 0;
-                    pipe_barrier(PIPE_V);
-                } else {
-                    secondTimeMaskUb = this->pseTBuf.template Get<uint8_t>();
-                    maskType = 1;
-                }
-                this->ComputeAttenMask(shapeInfo, stage1PingTensor, secondTimeMaskUb, maskType, eventIdMte2ToV);
-            }
+            //         secondTimeMaskUb = this->maskTBufPing.template Get<uint8_t>();
+            //         LocalTensor<uint8_t> attenMaskPrefixUb = this->pseTBuf.template Get<uint8_t>();
+            //         auto attenMaskCasualTmp = secondTimeMaskUb.ReinterpretCast<uint16_t>();
+            //         auto attenMaskPrefixUbTmp = attenMaskPrefixUb.ReinterpretCast<uint16_t>();
+            //         SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
+            //         WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
+            //         And(attenMaskCasualTmp, attenMaskCasualTmp, attenMaskPrefixUbTmp, maskNum);
+            //         maskType = 0;
+            //         pipe_barrier(PIPE_V);
+            //     } else {
+            //         secondTimeMaskUb = this->pseTBuf.template Get<uint8_t>();
+            //         maskType = 1;
+            //     }
+            //     this->ComputeAttenMask(shapeInfo, stage1PingTensor, secondTimeMaskUb, maskType, eventIdMte2ToV);
+            // }
         }
         if (loopIdx < extraInfo.realSplitN - 1) {
             SetFlag<HardEvent::V_MTE2>(eventIdVToMte2B);
@@ -1266,49 +1222,7 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2A);
         }
 
-        // if constexpr (hasDrop == true) {
-        //     LocalTensor<uint8_t> dropMaskUb = this->maskTBufPong.template Get<uint8_t>();
-        //     this->dropMaskInfo.s1InnerIdx = loopIdx;
-        //     this->dropMaskInfo.s2StartIdx = extraInfo.s2StartIdx;
-        //     this->dropMaskInfo.s2Idx = extraInfo.s2LoopCount;
-        //     this->dropMaskInfo.bSSOffset = extraInfo.attenB1SSOffset;
-        //     this->dropMaskInfo.n2OutIdx = extraInfo.n2oIdx;
-        //     this->dropMaskInfo.s1Size = extraInfo.s1Size;
-        //     this->dropMaskInfo.s2Size = extraInfo.s2Size;
-        //     this->dropMaskInfo.gOutIdx = extraInfo.goIdx;
-        //     this->dropMaskInfo.s1OutIdx = extraInfo.s1oIdx;
-        //     this->dropMaskInfo.splitS1BaseSize = extraInfo.vec1S1BaseSize;
-        //     this->dropMaskInfo.s1CopySize = static_cast<uint32_t>(extraInfo.vec1S1RealSize);
-        //     this->dropMaskInfo.s2CopySize = static_cast<uint32_t>(extraInfo.s2RealSize);
-        //     this->dropMaskInfo.s2TotalSize = extraInfo.s2Size;
-        //     this->dropMaskInfo.boolMode = this->dropMaskUnAligned;
-        //     if constexpr (hasPse == true) {
-        //         if constexpr (!IsSameType<T, INPUT_T>::value) {
-        //             if (loopIdx > 0) {
-        //                 WaitFlag<HardEvent::MTE3_MTE2>(eventIdDropMte3ToMte2);
-        //             }
-        //         }
-        //     }
-        //     CopyInDropMask<hasDrop>(dropMaskUb, this->dropMaskGm, this->dropMaskGm, this->dropMaskInfo);
-        // }
-
         this->SoftMaxCompute(extraInfo, stage1PingTensor, loopIdx);
-
-        // if constexpr (hasDrop == true) {
-        //     LocalTensor<uint8_t> apiTmpBuffer = this->commonTBuf.template Get<uint8_t>();
-        //     LocalTensor<uint8_t> dropMaskUb = this->maskTBufPong.template Get<uint8_t>();
-        //     pipe_barrier(PIPE_V);
-
-        //     SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-        //     WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-        //     this->dropMaskInfo.firstAxis = static_cast<uint32_t>(extraInfo.vec1S1RealSize);
-        //     this->dropMaskInfo.lstAxis = static_cast<uint32_t>(extraInfo.s2AlignedSize);
-        //     this->dropMaskInfo.maskLstAxis = this->dropMaskInfo.lstAxis;
-        //     this->dropMaskInfo.keepProb = this->tilingData->inputParams.keepProb;
-        //     ComputeDropMask<T, hasDrop>(stage1PingTensor, stage1PingTensor, dropMaskUb, apiTmpBuffer,
-        //                                 this->dropMaskInfo);
-        // }
-
         if (loopIdx < extraInfo.realSplitN - 1) {
             SetFlag<HardEvent::V_MTE2>(eventIdVToMte2A);
         }
@@ -1357,13 +1271,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     GetTPipePtr()->ReleaseEventID<HardEvent::V_MTE2>(eventIdVToMte2A);
     GetTPipePtr()->ReleaseEventID<HardEvent::V_MTE2>(eventIdVToMte2B);
     GetTPipePtr()->ReleaseEventID<HardEvent::V_MTE2>(eventIdVToMte2C);
-    // if constexpr (hasPse == true) {
-    //     if constexpr (hasDrop == true) {
-    //         if constexpr (!IsSameType<T, INPUT_T>::value) {
-    //             GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(eventIdDropMte3ToMte2);
-    //         }
-    //     }
-    // }
     return;
 }
 
