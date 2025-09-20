@@ -1052,39 +1052,6 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             }
             return;
         }
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-            static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-            int64_t preFactor = deltaPre + 1 + extraInfo.vec1S1BaseSize;
-            if (causalOrNextFactor >= 0 && preFactor <= 0) {
-                this->attenMaskComputeMode = AttenMaskComputeMode::NO_NEED_COMPUTE_MODE;
-            } else if (causalOrNextFactor < 0 && preFactor <= 0) {
-                this->attenMaskComputeMode = AttenMaskComputeMode::CAUSAL_OR_NEXT_ONLY_MODE;
-            } else if (causalOrNextFactor >= 0 && preFactor > 0) {
-                this->attenMaskComputeMode = AttenMaskComputeMode::PRE_ONLY_MODE;
-            } else {
-                this->attenMaskComputeMode = AttenMaskComputeMode::PRE_AND_NEXT_MODE;
-            }
-        }
-        if (this->tilingData->inputParams.attenMaskCompressMode ==
-            static_cast<uint8_t>(AttenMaskCompressMode::PREFIX_MODE)) {
-            int64_t preFactor = deltaPre - extraInfo.s2AlignedSize;
-            // Triangular part and rectangular part have one is not counted, then the whole is not counted,
-            // otherwise it needs to be calculated
-            if (causalOrNextFactor >= 0 || preFactor >= 0 || deltaPre > extraInfo.s2Size) {
-                // attenmask value is all 0, no need to compute
-                this->attenMaskComputeMode = AttenMaskComputeMode::NO_NEED_COMPUTE_MODE;
-            } else {
-                int64_t intersectionX = extraInfo.s1Size - extraInfo.s2Size +
-                    ((__gm__ int64_t *)this->prefixNAddr)[extraInfo.boIdx];
-                if (s1Offset >= intersectionX) {
-                    this->attenMaskComputeMode = AttenMaskComputeMode::CAUSAL_OR_NEXT_ONLY_MODE;
-                } else if (s1Offset + extraInfo.vec1S1BaseSize <= intersectionX) {
-                    this->attenMaskComputeMode = AttenMaskComputeMode::PREFIX_N_COMPUTE_MODE;
-                } else {
-                    this->attenMaskComputeMode = AttenMaskComputeMode::PREFIX_COMPUTE_MODE;
-                }
-            }
-        }
         return;
     }
 }
@@ -1102,20 +1069,9 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         int64_t s1Offset = extraInfo.s1oIdx * this->s1BaseSize * extraInfo.s2Size +
                            loopIdx * extraInfo.vec1S1BaseSize * extraInfo.s2Size;
         int64_t s2Offset = extraInfo.s2StartIdx + extraInfo.s2LoopCount * s2BaseNratioSize;
-        if (this->tilingData->inputParams.attenMaskShapeType == attenMaskBN2GS1S2) {
-            bOffset = extraInfo.attenB1SSOffset * this->n2G;
-            n2Offset = extraInfo.n2oIdx * this->tilingData->inputParams.gSize * extraInfo.s1Size * extraInfo.s2Size;
-            gOffset = extraInfo.goIdx * extraInfo.s1Size * extraInfo.s2Size;
-        } else if (this->tilingData->inputParams.attenMaskShapeType == attenMaskBS1S2) {
-            bOffset = extraInfo.attenB1SSOffset;
-        } else if (this->tilingData->inputParams.attenMaskShapeType == attenMaskS1S2) {
-            s1Offset = extraInfo.s1oIdx * this->s1BaseSize * this->tilingData->inputParams.s2Size +
-                       loopIdx * extraInfo.vec1S1BaseSize * this->tilingData->inputParams.s2Size;
-        } else if (this->tilingData->inputParams.attenMaskShapeType == attenMaskTT) {
-            s1Offset = extraInfo.s1SizeAcc + extraInfo.s1oIdx * this->s1BaseSize + loopIdx * extraInfo.vec1S1BaseSize;
-            s1Offset = s1Offset * this->s2SizeSum;
-            s2Offset = s2Offset + extraInfo.s2SizeAcc;
-        }
+        bOffset = extraInfo.attenB1SSOffset * this->n2G;
+        n2Offset = extraInfo.n2oIdx * this->tilingData->inputParams.gSize * extraInfo.s1Size * extraInfo.s2Size;
+        gOffset = extraInfo.goIdx * extraInfo.s1Size * extraInfo.s2Size;
         return bOffset + n2Offset + gOffset + s1Offset + s2Offset;
     }
 }
