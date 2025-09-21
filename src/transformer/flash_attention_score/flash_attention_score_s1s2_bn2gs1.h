@@ -273,9 +273,8 @@ protected:
     GlobalTensor<uint8_t> attenMaskGmInt;
 
     bool dropMaskUnAligned;
-    int64_t attenMaskOffsetPre = 0;
-    PseInfo pseInfo = {0};
-    DropMaskInfo dropMaskInfo = {0};
+    // PseInfo pseInfo = {0};
+    // DropMaskInfo dropMaskInfo = {0};
 };
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
@@ -300,7 +299,7 @@ FlashAttentionScoreS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     DropOutBitModeInit(apiTmpBuffer);
     if (this->blockIdx < this->tilingData->multiCoreParams.coreNum) {
         LocalTensor<half> pseHelpBuffer = this->stage1PingBuf.template Get<half>();
-        PseInnerAlibiCreate<hasPse>(this->pseAlibiGm, pseHelpBuffer, this->pseInfo);
+        // PseInnerAlibiCreate<hasPse>(this->pseAlibiGm, pseHelpBuffer, this->pseInfo);
     }
 }
 
