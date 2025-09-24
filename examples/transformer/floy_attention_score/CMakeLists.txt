@@ -8,7 +8,7 @@
 # ======================================================================================================================
 
 add_executable(test_fused_floyd_attention
-test_fused_floyd_attention.cpp
+        test_fused_floyd_attention.cpp
 )
 add_execute_example(
         TARGET_NAME test_fused_floyd_attention
@@ -16,7 +16,6 @@ add_execute_example(
         TEST_CASE fa_case
         ACLNN_FUNC "aclnnFusedFloydAttention"
 )
-
 
 install(TARGETS test_fused_floyd_attention
         LIBRARY DESTINATION lib

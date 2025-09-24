@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2023-2024 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ extern "C" {
  * @domain aclnn_ops_infer
  */
 aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
-    const aclTensor *query, const aclTensor *key0, const aclTensor *key1, const aclTensor *value0,
-    const aclTensor *value1, const aclTensor *attenMaskOptional, float scaleValue, const aclTensor *softmaxMaxOut, 
-    const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut, uint64_t *workspaceSize,
+    const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0, const aclTensor *key_1, const aclTensor *value_1, const aclTensor *attenMaskOptional,
+    double scaleValueOptional, const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut,
+    const aclTensor *attentionOutOut, uint64_t *workspaceSize,
     aclOpExecutor **executor);
 
 /**
@@ -32,6 +32,7 @@ aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
  */
 aclnnStatus aclnnFusedFloydAttention(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                      const aclrtStream stream);
+
 #ifdef __cplusplus
 }
 #endif

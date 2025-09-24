@@ -29,7 +29,7 @@ message(STATUS "SocName=${_SocName}")
 
 # 添加示例工程
 if (_SocName MATCHES ascend910_93)
-    add_subdirectory(flash_attention_score)
+    # add_subdirectory(flash_attention_score)
     add_subdirectory(floy_attention_score)
 else()
     message(STATUS "floy_attn don't support SocName(${_SocName}), skip.")

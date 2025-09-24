@@ -18,75 +18,17 @@ namespace l0op {
 OP_TYPE_REGISTER(FusedFloydAttention);
 
 const std::array<const aclTensor *, 3>
-FusedFloydAttention(const aclTensor *query, const aclTensor *key0, const aclTensor *key1,
-                    const aclTensor *value0, const aclTensor *value1, const aclTensor *attenMaskOptional,
-                    float scaleValue, aclOpExecutor *executor)
+FusedFloydAttention(const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0,
+                    const aclTensor *key_1, const aclTensor *value_1,
+                    const aclTensor *attenMaskOptional,
+                    double scaleValueOptional, aclOpExecutor *executor)
 {
-    L0_DFX(FusedFloydAttention, query, key0, key1, value0, value1,
-           attenMaskOptional, scaleValue);
+    L0_DFX(FusedFloydAttention, query, key_0, value_0, key_1, value_1,
+           attenMaskOptional, scaleValueOptional);
 
-    // if (realShiftOptional == nullptr) {
-    //     realShiftOptional = executor->AllocTensor(query->GetDataType(), Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
-    // if (dropMaskOptional == nullptr) {
-    //     dropMaskOptional = executor->AllocTensor(DataType::DT_UINT8, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
-    // if (paddingMaskOptional == nullptr) {
-    //     paddingMaskOptional = executor->AllocTensor(query->GetDataType(), Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
     if (attenMaskOptional == nullptr) {
         attenMaskOptional = executor->AllocTensor(DataType::DT_BOOL, Format::FORMAT_ND, Format::FORMAT_ND);
     }
-
-    // const aclTensor *prefixOptionalTensor = nullptr;
-    // if (prefixOptional) {
-    //     prefixOptionalTensor = executor->ConvertToTensor(prefixOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(prefixOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(prefixOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(prefixOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     prefixOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
-
-    // const aclTensor *actualSeqQLen = nullptr;
-    // if (actualSeqQLenOptional) {
-    //     actualSeqQLen = executor->ConvertToTensor(actualSeqQLenOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(actualSeqQLen)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqQLen)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqQLen)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     actualSeqQLen = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
-
-    // const aclTensor *actualSeqKvLen = nullptr;
-    // if (actualSeqKvLenOptional) {
-    //     actualSeqKvLen = executor->ConvertToTensor(actualSeqKvLenOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(actualSeqKvLen)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqKvLen)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(actualSeqKvLen)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     actualSeqKvLen = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
-
-    // const aclTensor *qStartIdxOptionalTensor = nullptr;
-    // if (qStartIdxOptional) {
-    //     qStartIdxOptionalTensor = executor->ConvertToTensor(qStartIdxOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(qStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     qStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
-
-    // const aclTensor *kvStartIdxOptionalTensor = nullptr;
-    // if (kvStartIdxOptional) {
-    //     kvStartIdxOptionalTensor = executor->ConvertToTensor(kvStartIdxOptional, DataType::DT_INT64);
-    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetStorageFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetViewFormat(Format::FORMAT_ND);
-    //     const_cast<aclTensor *>(kvStartIdxOptionalTensor)->SetOriginalFormat(Format::FORMAT_ND);
-    // } else {
-    //     kvStartIdxOptionalTensor = executor->AllocTensor(DataType::DT_INT64, Format::FORMAT_ND, Format::FORMAT_ND);
-    // }
 
     auto softmaxMaxOut = executor->AllocTensor(DataType::DT_FLOAT, Format::FORMAT_ND, Format::FORMAT_ND);
     auto softmaxSumOut = executor->AllocTensor(DataType::DT_FLOAT, Format::FORMAT_ND, Format::FORMAT_ND);
@@ -94,18 +36,20 @@ FusedFloydAttention(const aclTensor *query, const aclTensor *key0, const aclTens
     auto attentionOutOut = executor->AllocTensor(query->GetDataType(), Format::FORMAT_ND, Format::FORMAT_ND);
 
     auto ret = INFER_SHAPE(FusedFloydAttention,
-                           OP_INPUT(query, key0, key1, value0, value1, attenMaskOptional),
+                           OP_INPUT(query, key_0, value_0, key_1, value_1,
+                                    attenMaskOptional),
                            OP_OUTPUT(softmaxMaxOut, softmaxSumOut, attentionOutOut),
-                           OP_ATTR(static_cast<float>(scaleValue)));
+                           OP_ATTR(static_cast<float>(scaleValueOptional)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FusedFloydAttention InferShape failed.");
         return {nullptr, nullptr, nullptr};
     }
 
     ADD_TO_LAUNCHER_LIST_AICORE(FusedFloydAttention,
-                                OP_INPUT(query, key0, key1, value0, value1, attenMaskOptional),
+                                OP_INPUT(query, key_0, value_0, key_1, value_1,
+                                         attenMaskOptional),
                                 OP_OUTPUT(softmaxMaxOut, softmaxSumOut, attentionOutOut),
-                                OP_ATTR(static_cast<float>(scaleValue)));
+                                OP_ATTR(static_cast<float>(scaleValueOptional)));
     return {softmaxMaxOut, softmaxSumOut, attentionOutOut};
 }
 

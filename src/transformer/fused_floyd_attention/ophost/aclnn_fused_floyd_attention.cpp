@@ -32,7 +32,6 @@ static const int64_t PAD_LOWER_BOUND_196 = 196;
 static const int64_t PAD_ALIGN_128 = 128;
 static const int64_t PAD_ALIGN_SPL_SHAPE = 448;
 static const int64_t MAX_STRIDE_S1 = 65535;
-static const uint64_t DIM_NUM_5 = 5;
 static const uint64_t DIM_NUM_4 = 4;
 static const uint64_t DIM_NUM_3 = 3;
 static const uint64_t DIM_NUM_2 = 2;
@@ -64,7 +63,7 @@ enum class InputLayout {
     TND
 };
 
-struct FloydShapeInfo {
+struct FaShapeInfo {
     AxesInfo axes;
 
     InputLayout inputLayout;
@@ -73,351 +72,189 @@ struct FloydShapeInfo {
     uint64_t dimNum = 0;
     uint64_t padNum = 0;
 
-    FVector<int64_t, DIM_NUM_5> perm_in;
-    FVector<int64_t, DIM_NUM_5> perm_out;
-    FVector<int64_t, DIM_NUM_5> reshapedQueryShape;
-    FVector<int64_t, DIM_NUM_5> reshapedKeyValueShape0;
-    FVector<int64_t, DIM_NUM_5> reshapedKeyValueShape1;
-
+    FVector<int64_t, DIM_NUM_4> perm_in;
+    FVector<int64_t, DIM_NUM_4> perm_out;
+    FVector<int64_t, DIM_NUM_4> reshapedQueryShape;
+    FVector<int64_t, DIM_NUM_4> reshapedKeyValueShape;
+    FVector<int64_t, DIM_NUM_4> reshapedAttenMaskShape;
     bool needPad = false;
     bool needTranspose = false;
     bool needReshape = false;
 };
 
-// void AnalysisAxisForBsh(const Shape &qShape, const Shape &kShape, FaShapeInfo &shapeInfo)
-// {
-//     shapeInfo.inputLayout = InputLayout::BSH;
-//     shapeInfo.l0InputLayoutStr = "BSH";
-//     uint64_t dSize = qShape[2] / shapeInfo.axes.n1;
-//     shapeInfo.axes.d = dSize;
-//     if (dSize == 0) {
-//         return;
-//     }
-//     shapeInfo.axes.b = qShape[0];
-//     shapeInfo.axes.n2 = kShape[2] / dSize;
-//     shapeInfo.axes.s1 = qShape[1];
-//     shapeInfo.axes.s2 = kShape[1];
-// }
+void AnalysisAxisForBnsd(const Shape &qShape, const Shape &kShape, FaShapeInfo &shapeInfo)
+{
+    shapeInfo.inputLayout = InputLayout::BNSD;
+    shapeInfo.l0InputLayoutStr = "BNSD";
+    shapeInfo.axes.b = qShape[0]*qShape[1];
+    shapeInfo.axes.n2 = kShape[2];
+    shapeInfo.axes.s1 = qShape[3];
+    shapeInfo.axes.s2 = kShape[3];
+    shapeInfo.axes.d = qShape[4];
+}
 
-// void AnalysisAxisForBsnd(const Shape &qShape, const Shape &kShape, FaShapeInfo &shapeInfo)
-// {
-//     shapeInfo.inputLayout = InputLayout::BSND;
-//     shapeInfo.l0InputLayoutStr = "BSND";
-//     shapeInfo.axes.b = qShape[0];
-//     shapeInfo.axes.n2 = kShape[2];
-//     shapeInfo.axes.s1 = qShape[1];
-//     shapeInfo.axes.s2 = kShape[1];
-//     shapeInfo.axes.d = qShape[3];
-// }
+aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key_0,
+                         FaShapeInfo &shapeInfo)
+{
+    Shape kShape = key_0->GetViewShape();
+    Shape qShape = query->GetViewShape();
+    shapeInfo.dimNum = qShape.GetDimNum();
 
-// void AnalysisAxisForTnd(const Shape &qShape, const Shape &kShape, FaShapeInfo &shapeInfo)
-// {
-//     shapeInfo.inputLayout = InputLayout::TND;
-//     shapeInfo.l0InputLayoutStr = "TND";
-//     shapeInfo.axes.n2 = kShape[1];
-//     shapeInfo.axes.d = qShape[DIM_NUM_2];
-// }
+    std::string inputLayoutStr = "BNSD";
 
-// void AnalysisAxisForSbh(const Shape &qShape, const Shape &kShape, FaShapeInfo &shapeInfo)
-// {
-//     shapeInfo.inputLayout = InputLayout::SBH;
-//     shapeInfo.l0InputLayoutStr = "SBH";
-//     uint64_t dSize = qShape[2] / shapeInfo.axes.n1;
-//     shapeInfo.axes.d = dSize;
-//     if (dSize == 0) {
-//         return;
-//     }
-//     shapeInfo.axes.b = qShape[1];
-//     shapeInfo.axes.n2 = kShape[2] / dSize;
-//     shapeInfo.axes.s1 = qShape[0];
-//     shapeInfo.axes.s2 = kShape[0];
-// }
+    if (inputLayoutStr == "BNSD") {
 
-// void AnalysisAxisForBnsd(const Shape &qShape, const Shape &kShape, FaShapeInfo &shapeInfo)
-// {
-//     shapeInfo.inputLayout = InputLayout::BNSD;
-//     shapeInfo.l0InputLayoutStr = "BNSD";
-//     shapeInfo.axes.b = qShape[0];
-//     shapeInfo.axes.n2 = kShape[1];
-//     shapeInfo.axes.s1 = qShape[2];
-//     shapeInfo.axes.s2 = kShape[2];
-//     shapeInfo.axes.d = qShape[3];
-// }
+        AnalysisAxisForBnsd(qShape, kShape, shapeInfo);
+    } else {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "not support input_layout %s with dim_num %lu", inputLayoutStr, shapeInfo.dimNum);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    return ACLNN_SUCCESS;
+}
 
-// aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key, const char *inputLayout, int64_t headNum,
-//                          FaShapeInfo &shapeInfo)
-// {
-//     Shape kShape = key->GetViewShape();
-//     Shape qShape = query->GetViewShape();
-//     shapeInfo.dimNum = qShape.GetDimNum();
 
-//     // 记录轴的长度 b, n2, g, s1, s2, d
-//     // H1等于N1*D, H2等于N2*D
-//     // N1等于g*N2
-//     shapeInfo.axes.n1 = headNum;
-//     std::string inputLayoutStr = op::ToString(inputLayout).GetString();
-//     if (shapeInfo.dimNum == DIM_NUM_3 && inputLayoutStr == "BSH") {
-//         // query: (B,S1,N1*D)
-//         // key/value: (B,S2,N2*D)
-//         AnalysisAxisForBsh(qShape, kShape, shapeInfo);
-//     } else if (shapeInfo.dimNum == DIM_NUM_4 && inputLayoutStr == "BSND") {
-//         // query: (B,S1,N1,D)
-//         // key/value: (B,S2,N2,D)
-//         AnalysisAxisForBsnd(qShape, kShape, shapeInfo);
-//     } else if (shapeInfo.dimNum == DIM_NUM_3 && inputLayoutStr == "SBH") {
-//         // query: (S1,B,N1*D)
-//         // key/value: (S2,B,N2*D)
-//         AnalysisAxisForSbh(qShape, kShape, shapeInfo);
-//     } else if (shapeInfo.dimNum == DIM_NUM_4 && inputLayoutStr == "BNSD") {
-//         // query: (B,N1,S1,D)
-//         // key/value: (B,N2,S2,D)
-//         AnalysisAxisForBnsd(qShape, kShape, shapeInfo);
-//     } else if (shapeInfo.dimNum == DIM_NUM_3 && inputLayoutStr == "TND") {
-//         // query: (T,N1,D)
-//         // key/value: (T,N2,D)
-//         AnalysisAxisForTnd(qShape, kShape, shapeInfo);
-//     } else {
-//         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "not support input_layout %s with dim_num %lu", inputLayout, shapeInfo.dimNum);
-//         return ACLNN_ERR_PARAM_INVALID;
-//     }
-//     return ACLNN_SUCCESS;
-// }
+void SetShapeInfoForBnsd(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
+{
+    if (shapeInfo.inputLayout == InputLayout::BNSD) {
+        shapeInfo.needReshape = true;
+        shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s1, shapeInfo.axes.d});
+        shapeInfo.reshapedKeyValueShape.assign(
+            {shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s2, shapeInfo.axes.d});
+        shapeInfo.reshapedAttenMaskShape.assign(
+            {shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s1, shapeInfo.axes.s2});
+    }
+}
 
-// void SetShapeInfoForBshBsnd(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
-// {
-//     if (alignedH1Size > MAX_STRIDE_S1) {
-//         shapeInfo.needTranspose = true;
-//         shapeInfo.needReshape = true;
-//         shapeInfo.l0InputLayoutStr = "BNSD";
 
-//         // B,S,N,D -> B,N,S,D
-//         shapeInfo.perm_in.assign({0, 2, 1, 3});
-//         // B,N,S,D -> B,S,N,D
-//         shapeInfo.perm_out.assign(shapeInfo.perm_in.cbegin(), shapeInfo.perm_in.cend());
-//     }
-//     if (shapeInfo.needPad) {
-//         shapeInfo.needReshape = true;
-//     }
+void SetShapeInfoForSbh(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
+{
+    if (shapeInfo.axes.b * alignedH1Size > MAX_STRIDE_S1) {
+        shapeInfo.needTranspose = true;
+        shapeInfo.needReshape = true;
+        shapeInfo.l0InputLayoutStr = "BNSD";
 
-//     if (shapeInfo.inputLayout == InputLayout::BSND) {
-//         shapeInfo.needReshape = false;
-//     }
-//     if (shapeInfo.needReshape) {
-//         if (!shapeInfo.needTranspose) {
-//             shapeInfo.l0InputLayoutStr = "BSND";
-//         }
-//         shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.b, shapeInfo.axes.s1, shapeInfo.axes.n1, shapeInfo.axes.d});
-//         shapeInfo.reshapedKeyValueShape.assign(
-//             {shapeInfo.axes.b, shapeInfo.axes.s2, shapeInfo.axes.n2, shapeInfo.axes.d});
-//     }
-// }
+        // S,B,N,D -> B,N,S,D
+        shapeInfo.perm_in.assign({1, 2, 0, 3});
+        // B,N,S,D -> S,B,N,D
+        shapeInfo.perm_out.assign({2, 0, 1, 3});
+    }
+    if (shapeInfo.needPad) {
+        shapeInfo.needReshape = true;
+    }
 
-// void SetShapeInfoForSbh(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
-// {
-//     if (shapeInfo.axes.b * alignedH1Size > MAX_STRIDE_S1) {
-//         shapeInfo.needTranspose = true;
-//         shapeInfo.needReshape = true;
-//         shapeInfo.l0InputLayoutStr = "BNSD";
+    if (shapeInfo.needReshape) {
+        if (!shapeInfo.needTranspose) {
+            shapeInfo.l0InputLayoutStr = "SBH";
+        }
+        shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.s1, shapeInfo.axes.b, shapeInfo.axes.n1, shapeInfo.axes.d});
+        shapeInfo.reshapedKeyValueShape.assign(
+            {shapeInfo.axes.s2, shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.d});
+    }
+}
 
-//         // S,B,N,D -> B,N,S,D
-//         shapeInfo.perm_in.assign({1, 2, 0, 3});
-//         // B,N,S,D -> S,B,N,D
-//         shapeInfo.perm_out.assign({2, 0, 1, 3});
-//     }
-//     if (shapeInfo.needPad) {
-//         shapeInfo.needReshape = true;
-//     }
+static int64_t GetSumIntArrayMaxValue(const aclIntArray *intArrayValue)
+{
+    // 获取targetLengthsList中的最大值
+    int64_t maxLength = 0;
+    int64_t tmpMaxLength = 0;
+    if (intArrayValue->Size() == 1) {
+        maxLength = static_cast<int64_t>((*intArrayValue)[0]);
+        return maxLength;
+    }
+    maxLength = static_cast<int64_t>((*intArrayValue)[0]);
+    for (size_t i = 1; i < intArrayValue->Size(); ++i) {
+        tmpMaxLength = static_cast<int64_t>((*intArrayValue)[i]) - static_cast<int64_t>((*intArrayValue)[i - 1]);
+        if (tmpMaxLength > maxLength) {
+            maxLength = tmpMaxLength;
+        }
+    }
+    return maxLength;
+}
 
-//     if (shapeInfo.needReshape) {
-//         if (!shapeInfo.needTranspose) {
-//             shapeInfo.l0InputLayoutStr = "SBH";
-//         }
-//         shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.s1, shapeInfo.axes.b, shapeInfo.axes.n1, shapeInfo.axes.d});
-//         shapeInfo.reshapedKeyValueShape.assign(
-//             {shapeInfo.axes.s2, shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.d});
-//     }
-// }
 
-// static int64_t GetSumIntArrayMaxValue(const aclIntArray *intArrayValue)
-// {
-//     // 获取targetLengthsList中的最大值
-//     int64_t maxLength = 0;
-//     int64_t tmpMaxLength = 0;
-//     if (intArrayValue->Size() == 1) {
-//         maxLength = static_cast<int64_t>((*intArrayValue)[0]);
-//         return maxLength;
-//     }
-//     maxLength = static_cast<int64_t>((*intArrayValue)[0]);
-//     for (size_t i = 1; i < intArrayValue->Size(); ++i) {
-//         tmpMaxLength = static_cast<int64_t>((*intArrayValue)[i]) - static_cast<int64_t>((*intArrayValue)[i - 1]);
-//         if (tmpMaxLength > maxLength) {
-//             maxLength = tmpMaxLength;
-//         }
-//     }
-//     return maxLength;
-// }
+aclnnStatus InputDtypeCheck(const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0)
+{
+    auto vDtype = value_0->GetDataType();
+    auto kDtype = key_0->GetDataType();
+    auto qDtype = query->GetDataType();
+    if (qDtype != kDtype || kDtype != vDtype) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The data type of query[%s], key[%s], value[%s] are not equal.",
+                op::ToString(DataType(qDtype)).GetString(), op::ToString(DataType(kDtype)).GetString(),
+                op::ToString(DataType(vDtype)).GetString());
+        return ACLNN_ERR_PARAM_INVALID;
+    }
 
-// bool IsNeedPad(const FaShapeInfo &shapeInfo, const aclIntArray *actualSeqQLenOptional,
-//                const aclIntArray *actualSeqKvLenOptional)
-// {
-//     if ((shapeInfo.axes.d == HEAD_DIM_72 || shapeInfo.axes.d == HEAD_DIM_88) &&
-//          shapeInfo.axes.s2 <= SEQ_LEN_1024 && shapeInfo.inputLayout != InputLayout::BNSD &&
-//          shapeInfo.inputLayout != InputLayout::TND && shapeInfo.axes.n1 == shapeInfo.axes.n2 &&
-//          shapeInfo.needTranspose == false) {
-//         return false;
-//     }
+    return ACLNN_SUCCESS;
+}
 
-//     if (shapeInfo.inputLayout == InputLayout::TND) {
-//         if (shapeInfo.axes.d >= TND_UNPAD_MAX_DDIM) {
-//             return true;
-//         }
-//         int64_t sKvLenMax = 0;
-//         int64_t sQLenSum = 0;
-//         if (actualSeqQLenOptional != nullptr && actualSeqKvLenOptional != nullptr &&
-//             actualSeqQLenOptional->Size() == actualSeqKvLenOptional->Size()) {
-//             sKvLenMax = GetSumIntArrayMaxValue(actualSeqKvLenOptional);
-//             sQLenSum = actualSeqQLenOptional->Size() >= 1 ?
-//                        static_cast<int64_t>((*actualSeqQLenOptional)[actualSeqQLenOptional->Size() - 1]) : 0;
-//         }
+aclnnStatus AnalysisInput(const aclTensor *query, const aclTensor *key_0,
+                          FaShapeInfo &shapeInfo)
+{
+    CHECK_RET(AnalysisAxis(query, key_0, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
-//         if (sKvLenMax == 0 || sQLenSum == 0) {
-//             // 走原来逻辑是否pad
-//             OP_LOGD("Fa aclnn TND case sKvLenMax(%ld) or sQLenSum(%ld) is 0.", sKvLenMax, sQLenSum);
-//             return true;
-//         }
+    if (shapeInfo.axes.d > HEAD_DIM_MAX) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Head dim must <= 512, but got %ld", shapeInfo.axes.d);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
 
-//         if ((sKvLenMax <= TND_UNPAD_MAX_S2) && (sQLenSum < TND_UNPAD_MAX_S1_SUM)) {
-//             // 去除pad
-//             OP_LOGD("Fa aclnn TND case do not do pad dimD operation.");
-//             return false;
-//         }
-//     }
-//     return true;
-// }
+    if (shapeInfo.axes.n2 == 0 || shapeInfo.axes.d == 0) {
+        return ACLNN_SUCCESS;
+    }
 
-// aclnnStatus InputDtypeCheck(const aclTensor *query, const aclTensor *key, const aclTensor *value,
-//                             const aclTensor *realShiftOptional, int64_t pseTypeOptional)
-// {
-//     auto vDtype = value->GetDataType();
-//     auto kDtype = key->GetDataType();
-//     auto qDtype = query->GetDataType();
-//     if (qDtype != kDtype || kDtype != vDtype) {
-//         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The data type of query[%s], key[%s], value[%s] are not equal.",
-//                 op::ToString(DataType(qDtype)).GetString(), op::ToString(DataType(kDtype)).GetString(),
-//                 op::ToString(DataType(vDtype)).GetString());
-//         return ACLNN_ERR_PARAM_INVALID;
-//     }
-//     if (pseTypeOptional == PSE_INNER_MUL_ADD || pseTypeOptional == PSE_INNER_MUL_ADD_SQRT)
-//     { // Inner pse alibi, dtype must be fp32
-//         if (realShiftOptional == nullptr) {
-//             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When the pse type is 2 or 3, the pse input must be passed");
-//             return ACLNN_ERR_PARAM_INVALID;
-//         }
-//         auto pseDtype = realShiftOptional->GetDataType();
-//         if (pseDtype != op::DataType::DT_FLOAT) {
-//             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-//                     "The data type %s of pse is not invalid in pse type 2 or 3 mode, It must be float32",
-//                     op::ToString(DataType(pseDtype)).GetString());
-//             return ACLNN_ERR_PARAM_INVALID;
-//         }
-//         return ACLNN_SUCCESS;
-//     }
-//     if (realShiftOptional) {
-//         auto pseDtype = realShiftOptional->GetDataType();
-//         if (pseDtype != qDtype) {
-//             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-//                     "The data type %s of pse is not equal to the data type %s of query, key and value.",
-//                     op::ToString(DataType(pseDtype)).GetString(), op::ToString(DataType(qDtype)).GetString());
-//             return ACLNN_ERR_PARAM_INVALID;
-//         }
-//     }
-//     return ACLNN_SUCCESS;
-// }
+    if (shapeInfo.inputLayout != InputLayout::TND &&
+        (shapeInfo.axes.b == 0 || shapeInfo.axes.s1 == 0 || shapeInfo.axes.s2 == 0)) {
+        return ACLNN_SUCCESS;
+    }
 
-// aclnnStatus AnalysisInput(const aclTensor *query, const aclTensor *key, char *inputLayout, int64_t headNum,
-//                           FaShapeInfo &shapeInfo, const aclIntArray *actualSeqQLenOptional = nullptr,
-//                           const aclIntArray *actualSeqKvLenOptional = nullptr)
-// {
-//     if (headNum <= 0) {
-//         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "head_num must > 0, but got %ld", headNum);
-//         return ACLNN_ERR_PARAM_INVALID;
-//     }
-//     CHECK_RET(AnalysisAxis(query, key, inputLayout, headNum, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    int64_t alignDim = (shapeInfo.axes.d < PAD_LOWER_BOUND_196 || shapeInfo.axes.d == PAD_ALIGN_SPL_SHAPE) ?
+                           PAD_BASIC_BLOCK :
+                           PAD_ALIGN_128;
+    if (shapeInfo.axes.d % alignDim != 0) {
+        shapeInfo.needPad = true;
+        shapeInfo.padNum = (shapeInfo.axes.d + alignDim - 1) / alignDim * alignDim - shapeInfo.axes.d;
+    }
 
-//     if (shapeInfo.axes.d > HEAD_DIM_MAX) {
-//         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Head dim must <= 512, but got %ld", shapeInfo.axes.d);
-//         return ACLNN_ERR_PARAM_INVALID;
-//     }
+    int64_t alignedH1Size = shapeInfo.axes.n1 * (shapeInfo.axes.d + shapeInfo.padNum);
 
-//     if (shapeInfo.axes.n2 == 0 || shapeInfo.axes.d == 0) {
-//         return ACLNN_SUCCESS;
-//     }
+    if (shapeInfo.inputLayout == InputLayout::BNSD) {
+        SetShapeInfoForBnsd(alignedH1Size, shapeInfo);
+    }
+    OP_LOGD("Analysis input success. The analysis result: [needReshape]: %d, [needPad]: %d, [padNum]: %lu,"
+            "[needTranspose]: %d.",
+            shapeInfo.needReshape, shapeInfo.needPad, shapeInfo.padNum, shapeInfo.needTranspose);
+    return ACLNN_SUCCESS;
+}
 
-//     if (shapeInfo.inputLayout != InputLayout::TND &&
-//         (shapeInfo.axes.b == 0 || shapeInfo.axes.s1 == 0 || shapeInfo.axes.s2 == 0)) {
-//         return ACLNN_SUCCESS;
-//     }
+static inline const aclTensor *GeneratePaddings(int32_t dimNum, int32_t padNum, aclOpExecutor *executor)
+{
+    // 2代表每根轴的前后都可以补0
+    FVector<int64_t> padVec(dimNum * 2, 0);
+    padVec[padVec.size() - 1] = padNum;
 
-//     int64_t alignDim = (shapeInfo.axes.d < PAD_LOWER_BOUND_196 || shapeInfo.axes.d == PAD_ALIGN_SPL_SHAPE) ?
-//                            PAD_BASIC_BLOCK :
-//                            PAD_ALIGN_128;
-//     if (shapeInfo.axes.d % alignDim != 0) {
-//         shapeInfo.needPad = true;
-//         shapeInfo.padNum = (shapeInfo.axes.d + alignDim - 1) / alignDim * alignDim - shapeInfo.axes.d;
-//     }
+    auto padArray = executor->AllocIntArray(padVec.data(), padVec.size());
+    if (padArray == nullptr) {
+        OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Try alloc padVec failed");
+        return nullptr;
+    }
 
-//     int64_t alignedH1Size = shapeInfo.axes.n1 * (shapeInfo.axes.d + shapeInfo.padNum);
-//     if (shapeInfo.inputLayout == InputLayout::BSH || shapeInfo.inputLayout == InputLayout::BSND) {
-//         SetShapeInfoForBshBsnd(alignedH1Size, shapeInfo);
-//     } else if (shapeInfo.inputLayout == InputLayout::SBH) {
-//         SetShapeInfoForSbh(alignedH1Size, shapeInfo);
-//     }
+    auto padTensor = executor->ConvertToTensor(padArray, DataType::DT_INT64);
+    return padTensor;
+}
 
-//     if (!IsNeedPad(shapeInfo, actualSeqQLenOptional, actualSeqKvLenOptional)) {
-//         shapeInfo.needPad = false;
-//         shapeInfo.padNum = 0;
-//         shapeInfo.needReshape = false;
-//         if (shapeInfo.inputLayout == InputLayout::BSH) {
-//             shapeInfo.l0InputLayoutStr = "BSH";
-//         }
-//     }
-
-//     OP_LOGD("Analysis input success. The analysis result: [needReshape]: %d, [needPad]: %d, [padNum]: %lu,"
-//             "[needTranspose]: %d.",
-//             shapeInfo.needReshape, shapeInfo.needPad, shapeInfo.padNum, shapeInfo.needTranspose);
-//     return ACLNN_SUCCESS;
-// }
-
-// static inline const aclTensor *GeneratePaddings(int32_t dimNum, int32_t padNum, aclOpExecutor *executor)
-// {
-//     // 2代表每根轴的前后都可以补0
-//     FVector<int64_t> padVec(dimNum * 2, 0);
-//     padVec[padVec.size() - 1] = padNum;
-
-//     auto padArray = executor->AllocIntArray(padVec.data(), padVec.size());
-//     if (padArray == nullptr) {
-//         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Try alloc padVec failed");
-//         return nullptr;
-//     }
-
-//     auto padTensor = executor->ConvertToTensor(padArray, DataType::DT_INT64);
-//     return padTensor;
-// }
-
-aclnnStatus ContiguousFloyd(const aclTensor *&query, const aclTensor *&key0, const aclTensor *&key1, 
-                       const aclTensor *&value0, const aclTensor *&value1, const aclTensor *&attenMaskOptional,
+aclnnStatus Contiguous(const aclTensor *&query, const aclTensor *&key_0, const aclTensor *&value_0, const aclTensor *&key_1, const aclTensor *&value_1,
+                       const aclTensor *&attenMaskOptional,
                        aclOpExecutor *executor)
 {
     query = l0op::Contiguous(query, executor);
     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    key0 = l0op::Contiguous(key0, executor);
-    CHECK_RET(key0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    key1 = l0op::Contiguous(key1, executor);
-    CHECK_RET(key1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    value0 = l0op::Contiguous(value0, executor);
-    CHECK_RET(value0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    value1 = l0op::Contiguous(value1, executor);
-    CHECK_RET(value1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    key_0 = l0op::Contiguous(key_0, executor);
+    CHECK_RET(key_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    key_1 = l0op::Contiguous(key_1, executor);
+    CHECK_RET(key_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    value_0 = l0op::Contiguous(value_0, executor);
+    CHECK_RET(value_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    value_1 = l0op::Contiguous(value_1, executor);
+    CHECK_RET(value_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
     if (attenMaskOptional) {
         attenMaskOptional = l0op::Contiguous(attenMaskOptional, executor);
         CHECK_RET(attenMaskOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
@@ -425,118 +262,82 @@ aclnnStatus ContiguousFloyd(const aclTensor *&query, const aclTensor *&key0, con
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus PreprocessQKVFloyd(const aclTensor *&query, const aclTensor *&key0, const aclTensor *&key1, 
-                          const aclTensor *&value0, const aclTensor *&value1,
-                          const struct FloydShapeInfo &shapeInfo, aclOpExecutor *executor)
+aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key_0, const aclTensor *&value_0, const aclTensor *&key_1, const aclTensor *&value_1, const aclTensor *&attenMaskOptional,
+                          const struct FaShapeInfo &shapeInfo, aclOpExecutor *executor)
 {
-    query = l0op::Reshape(
-        query, executor->AllocIntArray(shapeInfo.reshapedQueryShape.data(), shapeInfo.reshapedQueryShape.size()),
-        executor);
-    CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    key0 = l0op::Reshape(
-        key0,
-        executor->AllocIntArray(shapeInfo.reshapedKeyValueShape0.data(), shapeInfo.reshapedKeyValueShape0.size()),
-        executor);
-    CHECK_RET(key0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    key1 = l0op::Reshape(
-        key1,
-        executor->AllocIntArray(shapeInfo.reshapedKeyValueShape1.data(), shapeInfo.reshapedKeyValueShape1.size()),
-        executor);
-    CHECK_RET(key1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    value0 = l0op::Reshape(
-        value0,
-        executor->AllocIntArray(shapeInfo.reshapedKeyValueShape0.data(), shapeInfo.reshapedKeyValueShape0.size()),
-        executor);
-    CHECK_RET(value0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    value1 = l0op::Reshape(
-        value1,
-        executor->AllocIntArray(shapeInfo.reshapedKeyValueShape1.data(), shapeInfo.reshapedKeyValueShape1.size()),
-        executor);
-    CHECK_RET(value1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-
-    // if (shapeInfo.needPad) {
-    //     int32_t dimNum = shapeInfo.inputLayout == InputLayout::TND ? DIM_NUM_3 : DIM_NUM_4;
-    //     auto paddings = GeneratePaddings(dimNum, shapeInfo.padNum, executor);
-
-    //     query = l0op::Pad(query, paddings, executor);
-    //     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    //     key = l0op::Pad(key, paddings, executor);
-    //     CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    //     value = l0op::Pad(value, paddings, executor);
-    //     CHECK_RET(value != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    // }
-
-    // if (shapeInfo.needTranspose) {
-    //     // B,S,N,D -> B,N,S,D
-    //     // S,B,N,D -> B,N,S,D
-    //     auto perm = executor->AllocIntArray(shapeInfo.perm_in.data(), shapeInfo.perm_in.size());
-    //     query = l0op::Transpose(query, perm, executor);
-    //     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    //     key = l0op::Transpose(key, perm, executor);
-    //     CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    //     value = l0op::Transpose(value, perm, executor);
-    //     CHECK_RET(value != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    // }
-
-    // if (shapeInfo.inputLayout == InputLayout::SBH && shapeInfo.needPad && !shapeInfo.needTranspose) {
-    //     // (S,B,N,D) -> (S,B,N*D)
-    //     FVector<int64_t, DIM_NUM_3> queryShape{shapeInfo.axes.s1, shapeInfo.axes.b,
-    //                                            shapeInfo.axes.n1 * (shapeInfo.axes.d +
-    //                                            static_cast<int64_t>(shapeInfo.padNum))};
-    //     FVector<int64_t, DIM_NUM_3> keyValueShape{shapeInfo.axes.s2, shapeInfo.axes.b,
-    //                                               shapeInfo.axes.n2 * (shapeInfo.axes.d +
-    //                                               static_cast<int64_t>(shapeInfo.padNum))};
-
-    //     query = l0op::Reshape(query, executor->AllocIntArray(queryShape.data(), queryShape.size()), executor);
-    //     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    //     key = l0op::Reshape(key, executor->AllocIntArray(keyValueShape.data(), keyValueShape.size()), executor);
-    //     CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    //     value = l0op::Reshape(value, executor->AllocIntArray(keyValueShape.data(), keyValueShape.size()), executor);
-    //     CHECK_RET(value != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    // }
+    if (shapeInfo.needReshape) {
+        query = l0op::Reshape(
+            query, executor->AllocIntArray(shapeInfo.reshapedQueryShape.data(), shapeInfo.reshapedQueryShape.size()),
+            executor);
+        CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        key_0 = l0op::Reshape(
+            key_0,
+            executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
+            executor);
+        CHECK_RET(key_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        value_0 = l0op::Reshape(
+            value_0,
+            executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
+            executor);
+        CHECK_RET(value_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        key_1 = l0op::Reshape(
+            key_1,
+            executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
+            executor);
+        CHECK_RET(key_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        value_1 = l0op::Reshape(
+            value_1,
+            executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
+            executor);
+        CHECK_RET(value_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        attenMaskOptional = l0op::Reshape(
+            attenMaskOptional,
+            executor->AllocIntArray(shapeInfo.reshapedAttenMaskShape.data(), shapeInfo.reshapedAttenMaskShape.size()),
+            executor);
+        CHECK_RET(attenMaskOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus PostprocessFloyd(const aclTensor *&l0AttentionOutOut, const Shape qShape,
-                        struct FloydShapeInfo &shapeInfo, aclOpExecutor *executor)
+aclnnStatus Postprocess(const aclTensor *&l0AttentionOutOut, const aclTensor *attentionOutOut,
+                        struct FaShapeInfo &shapeInfo, aclOpExecutor *executor)
 {
-
-    auto attentionOutOutShape = ToShapeVector(qShape);
+    auto attentionOutOutShape = ToShapeVector(attentionOutOut->GetViewShape());
     l0AttentionOutOut =
         l0op::Reshape(l0AttentionOutOut,
                         executor->AllocIntArray(attentionOutOutShape.data(), attentionOutOutShape.size()), executor);
     CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-
     return ACLNN_SUCCESS;
 }
 
-// aclnnStatus CheckFaParam(const aclTensor *query, const aclTensor *key, const aclTensor *value, const char *inputLayout,
-//     const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut,
-//     const uint64_t *workspaceSize, aclOpExecutor **executor)
-// {
-//     // 必须的参数指针判空
-//     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(value != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(inputLayout != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(executor != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(softmaxMaxOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(softmaxSumOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     CHECK_RET(attentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-//     return ACLNN_SUCCESS;
-// }
+aclnnStatus CheckFaParam(const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0, const aclTensor *key_1, const aclTensor *value_1,
+    const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut,
+    const uint64_t *workspaceSize, aclOpExecutor **executor)
+{
+    // 必须的参数指针判空
+    CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(key_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(value_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(key_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(value_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(executor != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(softmaxMaxOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(softmaxSumOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(attentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    return ACLNN_SUCCESS;
+}
 
 aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
-    const aclTensor *query, const aclTensor *key0, const aclTensor *key1, const aclTensor *value0,
-    const aclTensor *value1, const aclTensor *attenMaskOptional, float scaleValue, const aclTensor *softmaxMaxOut, 
-    const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut, uint64_t *workspaceSize,
-    aclOpExecutor **executor)
+    const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0, const aclTensor *key_1, const aclTensor *value_1, const aclTensor *attenMaskOptional,
+    double scaleValueOptional, const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut,
+    const aclTensor *attentionOutOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    // CHECK_RET(CheckFaParam(query, key, value, inputLayout, softmaxMaxOut, softmaxSumOut, attentionOutOut,
-    //     workspaceSize, executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(CheckFaParam(query, key_0, value_0, key_1, value_1, softmaxMaxOut, softmaxSumOut, attentionOutOut,
+        workspaceSize, executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
     L2_DFX_PHASE_1(aclnnFusedFloydAttention,
-                   DFX_IN(query, key0, key1, value0, value1, attenMaskOptional, scaleValue),
+                   DFX_IN(query, key_0, value_0, key_1, value_1,
+                          attenMaskOptional, scaleValueOptional),
                    DFX_OUT(softmaxMaxOut, softmaxSumOut, attentionOutOut));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -550,30 +351,21 @@ aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
         return ACLNN_SUCCESS;
     }
 
-    // CHECK_RET(InputDtypeCheck(query, key, value, realShiftOptional, PSE_TYPE_V1) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-    FloydShapeInfo shapeInfo;
-    shapeInfo.inputLayout = InputLayout::BNSD;
-    Shape qShape = query->GetViewShape();
-    Shape SoftMaxShape = query->GetViewShape();
-    SoftMaxShape[4] = 8;
-    Shape k0Shape = key0->GetViewShape();
-    Shape k1Shape = key1->GetViewShape();
-    shapeInfo.reshapedQueryShape.assign({qShape[0]*qShape[1], qShape[2], qShape[3], qShape[4]});
-    shapeInfo.reshapedKeyValueShape0.assign({k0Shape[0]*k0Shape[1], k0Shape[2], k0Shape[3], k0Shape[4]});
-    shapeInfo.reshapedKeyValueShape1.assign({k1Shape[0]*k1Shape[1], k1Shape[2], k1Shape[3], k1Shape[4]});
-
-    // CHECK_RET(AnalysisInput(query, key, inputLayout, headNum, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(InputDtypeCheck(query, key_0, value_0) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    FaShapeInfo shapeInfo;
+    CHECK_RET(AnalysisInput(query, key_0, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
 
-    CHECK_RET(ContiguousFloyd(query, key0, key1, value0, value1, attenMaskOptional,
+    CHECK_RET(Contiguous(query, key_0, value_0, key_1, value_1, attenMaskOptional,
                          l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
 
-    CHECK_RET(PreprocessQKVFloyd(query, key0, key1, value0, value1, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(PreprocessQKV(query, key_0, value_0, key_1, value_1, attenMaskOptional, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
 
     auto l0FusedFloydAttentionOuts = l0op::FusedFloydAttention(
-        query, key0, key1, value0, value1, attenMaskOptional, scaleValue, l0Executor);
+        query, key_0, value_0, key_1, value_1, attenMaskOptional,
+        scaleValueOptional, l0Executor);
 
     CHECK_RET(l0FusedFloydAttentionOuts[0] != nullptr, ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(l0FusedFloydAttentionOuts[1] != nullptr, ACLNN_ERR_INNER_NULLPTR);
@@ -583,12 +375,13 @@ aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
     // l0SoftmaxOutOut not used now
     auto l0AttentionOutOut = l0FusedFloydAttentionOuts[2];
 
-    CHECK_RET(PostprocessFloyd(l0SoftmaxMaxOut, SoftMaxShape, shapeInfo, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(Postprocess(l0AttentionOutOut, attentionOutOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(PostprocessFloyd(l0SoftmaxSumOut, SoftMaxShape, shapeInfo, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(Postprocess(l0SoftmaxMaxOut, softmaxMaxOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(PostprocessFloyd(l0AttentionOutOut, qShape, shapeInfo, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(Postprocess(l0SoftmaxSumOut, softmaxSumOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
+
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
     CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
@@ -596,7 +389,7 @@ aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
     CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    // std::cout << "uniqueExecutor->GetWorkspaceSize():" << uniqueExecutor->GetWorkspaceSize() << endl;
+
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;
@@ -609,6 +402,7 @@ aclnnStatus aclnnFusedFloydAttention(void *workspace, uint64_t workspaceSize, ac
     // 固定写法，调用框架能力，完成计算
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
+
 }  // namespace
 
 #ifdef __cplusplus

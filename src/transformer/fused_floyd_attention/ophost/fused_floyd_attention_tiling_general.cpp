@@ -22,7 +22,7 @@
 #include "fused_floyd_attention_tiling_common.h"
 
 namespace optiling {
-namespace FLOYD {
+namespace FA {
 const uint32_t BYTE_BLOCK = 32;
 const int64_t GM_ALIGN = 512;
 const int64_t FRACTAL_NUM = 16L;
@@ -30,9 +30,7 @@ const int64_t PSE_DIM_NUM = 4L;
 const int64_t S1_VEC2_BASE_SIZE_MAX = 512L;
 
 const int64_t BYTE_BIT_NUM = 8UL;
-const size_t PSE_INPUT_INDEX = 3UL;
-const size_t DROP_MASK_INPUT_INDEX = 4UL;
-const size_t ATTENTION_MASK_INPUT_INDEX = 6UL;
+const size_t ATTENTION_MASK_INPUT_INDEX = 5UL;
 const size_t PREFIX_INPUT_INDEX = 7UL;
 const size_t ACTUAL_SEQ_LENGTH_INPUT_INDEX = 8UL;
 const size_t ACTUAL_SEQ_LENGTH_KV_INPUT_INDEX = 9UL;
@@ -310,8 +308,8 @@ protected:
     virtual bool AnalyzeDtype();
     bool AnalyzeAttrs();
     bool AnalyzeLayout();
-    // bool Analyze5DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape);
-    bool Analyze4DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape);
+    // bool Analyze3DimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape, size_t layoutLen);
+    bool Analyze4DimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape);
     bool AnalyzeOptionalInput();
     bool MatchTemplate();
     virtual void CalcS1S2BasicBlock(const BufferNum &bufferNum);
@@ -354,14 +352,6 @@ protected:
     CubeInputSourceEnum tilingKeyBmm1Source = CubeInputSourceEnum::GM;
     CubeInputSourceEnum tilingKeyBmm2Source = CubeInputSourceEnum::GM;
 
-    // FloyD
-    int64_t BSize;
-    int64_t HSize;
-    int64_t NSize;
-    int64_t MSize;
-    int64_t KSize;
-    int64_t DSize;
-
     int64_t bSize;
     int64_t gSize;
     int64_t dSize;
@@ -399,7 +389,6 @@ protected:
     uint8_t attenMaskExistFlag;
     uint8_t dropMaskExistFlag;
 
-    int64_t alignedN2;
     int64_t alignedS1;
     int64_t alignedS2;
     int64_t alignedD;
@@ -454,7 +443,6 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetPlatformInfo()
     }
     OPS_LOG_I(context_, "get platform from compileInfo. aivNum(%u) aicNum(%u) ubSize(%lu) l1Size(%lu) l0cSize(%lu).",
               aivNum, aicNum, aicoreParams_.ubSize, aicoreParams_.l1Size, aicoreParams_.l0cSize);
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -463,21 +451,21 @@ ge::graphStatus FusedFloydAttentionTilingBase::CheckContext()
     auto attrs = context_->GetAttrs();
     OPS_LOG_E_IF_NULL(context_, attrs, return ge::GRAPH_FAILED)
     size_t idx = 0;
-    auto scaleValuePtr = attrs->GetAttrPointer<float>(idx);
+    auto scaleValuePtr = attrs->GetAttrPointer<float>(idx++);
     size_t *workspaces = context_->GetWorkspaceSizes(1);
 
     OPS_LOG_E_IF_NULL(context_, scaleValuePtr, return ge::GRAPH_FAILED)
 
+    OPS_LOG_E_IF_NULL(context_, workspaces, return ge::GRAPH_FAILED)
+
     auto queryShape = context_->GetInputShape(0);
     auto queryDesc = context_->GetInputDesc(0);
-    auto key0Shape = context_->GetInputShape(1);
-    auto key1Shape = context_->GetInputShape(2);
+    auto keyShape = context_->GetInputShape(1);
     auto attenOutShape = context_->GetOutputShape(ATTEN_OUT_INDEX);
 
     OPS_LOG_E_IF_NULL(context_, queryShape, return ge::GRAPH_FAILED)
     OPS_LOG_E_IF_NULL(context_, queryDesc, return ge::GRAPH_FAILED)
-    OPS_LOG_E_IF_NULL(context_, key0Shape, return ge::GRAPH_FAILED)
-    OPS_LOG_E_IF_NULL(context_, key1Shape, return ge::GRAPH_FAILED)
+    OPS_LOG_E_IF_NULL(context_, keyShape, return ge::GRAPH_FAILED)
     OPS_LOG_E_IF_NULL(context_, attenOutShape, return ge::GRAPH_FAILED)
     OPS_LOG_E_IF_NULL(context_, context_->GetRawTilingData(), return ge::GRAPH_FAILED)
     OPS_LOG_E_IF_NULL(context_, context_->GetRawTilingData()->GetData(), return ge::GRAPH_FAILED)
@@ -487,12 +475,14 @@ ge::graphStatus FusedFloydAttentionTilingBase::CheckContext()
                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
 void FusedFloydAttentionTilingBase::SetSparseTilingInfo(SparseEnum &sparseType)
 {
     auto &inputParams = tilingData.inputParams;
     inputParams.set_attenMaskCompressMode(attenMaskCompressMode);
     inputParams.set_sparseType(static_cast<uint8_t>(sparseType));
 }
+
 
 ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
 {
@@ -504,7 +494,6 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
     OPS_ERR_IF(!AnalyzeAttrs() || !AnalyzeDtype() || !AnalyzeLayout() || !AnalyzeOptionalInput(),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to analyze context info."), return ge::GRAPH_FAILED);
 
-    alignedN2 = AlignUp(n2Size, FRACTAL_NUM);
     alignedS1 = AlignUp(s1Size, FRACTAL_NUM);
     alignedS2 = AlignUp(s2Size, FRACTAL_NUM);
     alignedD = AlignUp(dSize, FRACTAL_NUM);
@@ -517,24 +506,19 @@ ge::graphStatus FusedFloydAttentionTilingBase::GetShapeAttrsInfo()
         return ge::GRAPH_FAILED);
 
     auto &inputParams = tilingData.inputParams;
-    inputParams.set_BSize(BSize);
-    inputParams.set_HSize(HSize);
-    inputParams.set_NSize(NSize);
-    inputParams.set_MSize(MSize);
-    inputParams.set_KSize(KSize);
-
     inputParams.set_bSize(bSize);
     inputParams.set_n2Size(n2Size);
     inputParams.set_gSize(gSize);
     inputParams.set_s1Size(s1Size);
     inputParams.set_s2Size(s2Size);
     inputParams.set_dSize(dSize);
+    inputParams.set_keepProb(keepProb);
     inputParams.set_scaleValue(scaleValue);
     inputParams.set_alignedS2(alignedS2);
     inputParams.set_pseType(static_cast<uint32_t>(pseType));
-    OPS_LOG_D(context_, "input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], scaleValue[%f]",
-    bSize, n2Size, gSize, s1Size, s2Size, dSize, scaleValue);
-    std::cout << "input params: bn2gs1s2d" << bSize << ' ' << n2Size << std::endl;
+    OPS_LOG_D(context_, "input params: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], keepProb[%f], scaleValue[%f],"
+              "pseType:%ld.", bSize, n2Size, gSize, s1Size, s2Size, dSize, keepProb, scaleValue, pseType);
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -590,7 +574,6 @@ void FusedFloydAttentionTilingBase::Reset()
     dropMaskExistFlag = 0;
     isHighPercision = true;
 
-    alignedN2 = 0LL;
     alignedS1 = 0LL;
     alignedS2 = 0LL;
     alignedD = 0LL;
@@ -650,74 +633,65 @@ bool FusedFloydAttentionTilingBase::AnalyzeAttrs()
 {
     auto attrs = context_->GetAttrs();
     size_t idx = 0;
-    auto scaleValuePtr = attrs->GetAttrPointer<float>(idx);
+    auto scaleValuePtr = attrs->GetAttrPointer<float>(idx++);
+
+    // auto n1SizePtr = attrs->GetAttrPointer<uint32_t>(4);
+    auto &queryShape = context_->GetInputShape(0)->GetStorageShape();
+    auto n1SizePtr = queryShape.GetDim(1);
+    inputLayout = "BNSD";
 
     scaleValue = *scaleValuePtr;
+    n1Size = n1SizePtr;
+    // OPS_ERR_IF(n1Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "Head num is zero."), return false);
+    // OPS_ERR_IF(keepProb <= 0.0 || keepProb > 1.0,
+    //            OPS_REPORT_VECTOR_INNER_ERR(opName, "keepProb value must be in range of (0, 1]."), return false);
 
     implMode = ImplMode::AA_HIGH_PRECISION;
-    OPS_LOG_D(context_, "attrs: scale_value[%f].",
-              scaleValue);
-    // isHighPercision = true; // use default value
+
+    isHighPercision = true; // use default value
+
     return true;
 }
 
 bool FusedFloydAttentionTilingBase::AnalyzeLayout()
 {
     auto &queryShape = context_->GetInputShape(0)->GetStorageShape();
-    auto &key0Shape = context_->GetInputShape(1)->GetStorageShape();
-    auto &key1Shape = context_->GetInputShape(2)->GetStorageShape();
+    auto &keyShape = context_->GetInputShape(1)->GetStorageShape();
 
-    // size_t layoutLen = strlen(inputLayout);
-    // OPS_LOG_D(context_, "Get input_layout [%s].", inputLayout);
-    OPS_ERR_IF(queryShape.GetDimNum() != 4 || key0Shape.GetDimNum() != 4 || key1Shape.GetDimNum() != 4,
-               OPS_REPORT_VECTOR_INNER_ERR(opName, "Invalid layout, not 5 dim"), return false);
-    OPS_ERR_IF(!Analyze4DimLayout(queryShape, key0Shape, key1Shape),
-               OPS_REPORT_VECTOR_INNER_ERR(opName, "Get unsupported layout: 5 dim"), return false);
-    // OPS_ERR_IF(gSize == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "gSize is zero."), return false);
-    // OPS_ERR_IF(n2Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "n2Size is zero."), return false);
-    // OPS_ERR_IF(dSize > HEAD_DIM_MAX_VALUE || dSize <= 0L,
-    //            OPS_REPORT_VECTOR_INNER_ERR(opName, "dSize is not in range:(0, 512]."), return false);
-    // OPS_ERR_IF(n1Size % n2Size != 0,
-    //            OPS_REPORT_VECTOR_INNER_ERR(opName, "n1Size [%ld] should be a multiple of n2Size [%ld].", n1Size, n2Size),
-    //            return false);
+    OPS_ERR_IF(!Analyze4DimLayout(queryShape, keyShape),
+               OPS_REPORT_VECTOR_INNER_ERR(opName, "Get unsupported layout: %s", inputLayout), return false);
     return true;
 }
 
-bool FusedFloydAttentionTilingBase::Analyze4DimLayout(const gert::Shape &queryShape, const gert::Shape &key0Shape, const gert::Shape &key1Shape)
+
+bool FusedFloydAttentionTilingBase::Analyze4DimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape)
 {
-    // TODO
-    // BSize = queryShape.GetDim(0);
-    // HSize = queryShape.GetDim(1);
-    // NSize = queryShape.GetDim(2);
-    // KSize = key0Shape.GetDim(3);
-    // MSize = key1Shape.GetDim(3);
-    // DSize = queryShape.GetDim(4);
+        bSize = queryShape.GetDim(0);
+        n2Size = keyShape.GetDim(1); // 1: N idx
+        gSize = queryShape.GetDim(1) / n2Size;
+        s1Size = queryShape.GetDim(2); // 2: S idx
+        s2Size = keyShape.GetDim(2);   // 2: S idx
+        dSize = queryShape.GetDim(3);  // 3: D idx
+        s1StrideSize = dSize;
+        s2StrideSize = dSize;
+        tilingData.inputParams.set_layoutType(LAYOUT_BNSD);
+        tilingKeyLayout = LayoutType::LAYOUT_BNSD;
 
-    bSize = queryShape.GetDim(0);
-    
-    n2Size = key0Shape.GetDim(1);
-    gSize = queryShape.GetDim(1) / n2Size;
-    s1Size = queryShape.GetDim(2); // 2: S1 idx
-    std::cout << "s1Size" << s1Size << std::endl;
-    s2Size = key0Shape.GetDim(2); // 2: S2 idx
-    dSize = queryShape.GetDim(3); // 3: D idx
-    s1StrideSize = dSize;
-    s2StrideSize = dSize;
-    tilingData.inputParams.set_layoutType(LAYOUT_BNSD);
-    tilingKeyLayout = LayoutType::LAYOUT_BNSD;
     return true;
-
 }
+
 
 bool FusedFloydAttentionTilingBase::AnalyzeOptionalInput()
 {
     auto attenMaskInput = context_->GetOptionalInputDesc(ATTENTION_MASK_INPUT_INDEX);
     auto attenMaskShape = context_->GetOptionalInputShape(ATTENTION_MASK_INPUT_INDEX);
-    tilingData.inputParams.set_attenMaskDataType(1);
     attenMaskExistFlag = 1;
+    tilingData.inputParams.set_attenMaskDataType(1);
     AttenMaskShapeType attenMaskShapeType = ATTEN_B_N2_G_S1_S2;
+    auto &attenMaskStorageShape = attenMaskShape->GetStorageShape();
+    size_t attenMaskDimNum = attenMaskStorageShape.GetDimNum();
     tilingData.inputParams.set_attenMaskShapeType(attenMaskShapeType);
-    OPS_LOG_D(context_, "attenMaskExistFlag: %d.", attenMaskExistFlag);
+    tilingData.inputParams.set_attenMaskS2Size(attenMaskStorageShape.GetDim(attenMaskDimNum - 1));
     return true;
 }
 
@@ -736,6 +710,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::DoOpTiling()
     }
 
     SparseEnum sparseType = SparseEnum::ALL;
+
     SetSparseTilingInfo(sparseType);
     inputParams.set_implMode(implMode);
     if (!isSparseValidSizeAligned) {
@@ -745,6 +720,7 @@ ge::graphStatus FusedFloydAttentionTilingBase::DoOpTiling()
     SetCoreParams();
     SetMultiCoreParams();
     SetTensorSizeParams();
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -798,10 +774,10 @@ void FusedFloydAttentionTilingBase::CalcS1S2BasicBlock(const BufferNum &bufferNu
         tmpS2BasicBlock = std::min(tmpS2BasicBlock, alignedS2);
         for (; tmpS2BasicBlock >= FRACTAL_NUM; tmpS2BasicBlock -= FRACTAL_NUM) {
             // drop mask bug workaround
-            if (dropMaskExistFlag == 1 &&
-                (tmpS2BasicBlock <= BYTE_BLOCK || CalcTailSize(alignedS2, tmpS2BasicBlock) <= BYTE_BLOCK)) {
-                continue;
-            }
+            // if (dropMaskExistFlag == 1 &&
+            //     (tmpS2BasicBlock <= BYTE_BLOCK || CalcTailSize(alignedS2, tmpS2BasicBlock) <= BYTE_BLOCK)) {
+            //     continue;
+            // }
 
             int64_t tmpDBasicBlock = expectTemplate.splitD == 1 ? std::min(tmpS2BasicBlock, alignedD) : alignedD;
             OPS_LOG_D(context_, "[%s]try basic block: [%ld, %ld]", templateName, tmpS1BasicBlock, tmpS2BasicBlock);
@@ -968,35 +944,12 @@ ge::graphStatus FusedFloydAttentionTilingBase::PostTiling()
     context_->SetBlockDim(blockDim);
     auto &inputParams = tilingData.inputParams;
     size_t *workspaces = context_->GetWorkspaceSizes(1);
-    // if (inputParams.get_needDropMaskOp() == 1) {
-    //     blockDim = optiling::CalcTschBlockDim(aivNum, aicNum, aivNum);
-    //     context_->SetBlockDim(blockDim);
 
-    //     int64_t shapeTotalSize = inputParams.get_bSize() * inputParams.get_n2Size() * inputParams.get_gSize() *
-    //                              inputParams.get_s1Size() * inputParams.get_s2Size();
-    //     auto layoutType = tilingData.inputParams.get_layoutType();
-    //     if (layoutType == LAYOUT_TND) {
-    //         for (int64_t i = 0; i < bSize; i++) {
-    //             dropTotalSize += (actualSeqLenData[i] * actualSeqLenKvData[i]);
-    //         }
-    //         shapeTotalSize = inputParams.get_n2Size() * inputParams.get_gSize() * dropTotalSize;
-    //     }
-    //     shapeTotalSize = AlignUp(shapeTotalSize, GM_ALIGN);
-    //     workspaces[0] += static_cast<size_t>(shapeTotalSize);
-    // }
-    std::cout << "inputparams" << inputParams.get_s1Size();
-    if (pseType == PSE_INNER_MUL_ADD_TYPE || pseType == PSE_INNER_MUL_ADD_SQRT_TYPE) {
-        tilingData.coreParams.set_pseAlibiBaseS1(pseAlibiBaseS1);
-        tilingData.coreParams.set_pseAlibiBaseS2(pseAlibiBaseS2);
-        int64_t pseAlibiBytes = AlignUp(pseAlibiBaseS2 * pseAlibiBaseS1 * 2, GM_ALIGN) *
-                                tilingData.multiCoreParams.get_coreNum();
-        workspaces[0] += pseAlibiBytes;
-    }
     OPS_LOG_D(context_, "[%s] final workspace size:%zu, pseAlibiBaseS1:%ld, pseAlibiBaseS2:%ld.",
               templateName, workspaces[0], pseAlibiBaseS1, pseAlibiBaseS2);
     OPS_LOG_D_FULL(opName, "[%s] tiling data:%s", templateName, GetTilingDataDebugStr().c_str());
     OPS_LOG_D(context_, "[%s] tiling data size: %zu", templateName, tilingData.GetDataSize());
-    
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1096,15 +1049,6 @@ void FusedFloydAttentionTilingBase::SetTensorSizeParams()
         tensorSizeParams.set_pseUbSize(pseExistFlag * batchInnerSize * s2BasicBlock); // PSE_B_N2_G_1_S2
     }
 
-    tensorSizeParams.set_dropMaskUbSize(dropMaskExistFlag * batchInnerSize * s1BasicBlock *
-                                        AlignUp(s2BasicBlock, DROP_MASK_ALIGN_UNIT) / BYTE_BIT_NUM / inputDtypeBytes);
-
-    if (tensorSizeParams.get_pseUbSize() > 0) {
-        hasPse = true;
-    }
-    if (tensorSizeParams.get_dropMaskUbSize() > 0) {
-        hasDropOut = true;
-    }
     if (tensorSizeParams.get_attenMaskUbSize() > 0) {
         hasAttenMask = true;
     }
@@ -1225,6 +1169,9 @@ protected:
         SetEnableL1Reuse();
         // 稀疏场景不开启S1轴N:1配比
         FusedFloydAttentionTilingBase::SetCoreParams();
+        if (tilingData.inputParams.get_sparseType() != static_cast<uint8_t>(SparseEnum::ALL)) {
+            return;
+        }
         SetMultiCoreParams();
         auto &coreParams = tilingData.coreParams;
         auto &multiCoreParams = tilingData.multiCoreParams;
@@ -1404,12 +1351,7 @@ protected:
         workspaces[0] = static_cast<size_t>((bmm1AlignBytes + stage1AlignBytes + bmm2AlignBytes) *
                                             tilingData.multiCoreParams.get_coreNum()) +
                         WORK_SPACE_RESERVE_SIZE;
-        if (pseType == PSE_INNER_MUL_ADD_TYPE || pseType == PSE_INNER_MUL_ADD_SQRT_TYPE) {
-            pseAlibiBaseS2 = alignedS2;
-            pseAlibiBaseS1 = std::min(static_cast<int64_t>(coreParams.get_s1BaseSize()),
-                                      UB_BASIC_LIMIT_SIZE / pseAlibiBaseS2);
-            pseAlibiBaseS1 = std::max(pseAlibiBaseS1, UB_BASIC_LIMIT_SIZE / coreParams.get_s1BaseSize());
-        }
+
         return ge::GRAPH_SUCCESS;
     }
 };
@@ -1512,15 +1454,15 @@ protected:
         tensorSizeParams.set_bmm1ResUbSize(s1BasicBlock * s2BasicBlock);
         tensorSizeParams.set_attenMaskUbSize(attenMaskExistFlag * s1BasicBlock * s2BasicBlock);
         tensorSizeParams.set_pseUbSize(pseExistFlag * s1BasicBlock * s2BasicBlock);
-        tensorSizeParams.set_dropMaskUbSize(dropMaskExistFlag * s1BasicBlock *
-                                            AlignUp(s2BasicBlock, DROP_MASK_ALIGN_UNIT) / BYTE_BIT_NUM /
-                                            inputDtypeBytes);
+        // tensorSizeParams.set_dropMaskUbSize(dropMaskExistFlag * s1BasicBlock *
+        //                                     AlignUp(s2BasicBlock, DROP_MASK_ALIGN_UNIT) / BYTE_BIT_NUM /
+        //                                     inputDtypeBytes);
         if (tensorSizeParams.get_pseUbSize() > 0) {
             hasPse = true;
         }
-        if (tensorSizeParams.get_dropMaskUbSize() > 0) {
-            hasDropOut = true;
-        }
+        // if (tensorSizeParams.get_dropMaskUbSize() > 0) {
+        //     hasDropOut = true;
+        // }
         if (tensorSizeParams.get_attenMaskUbSize() > 0) {
             hasAttenMask = true;
         }
@@ -1646,11 +1588,6 @@ protected:
         workspaces[0] = WORK_SPACE_RESERVE_SIZE +
                         static_cast<size_t>((bmm1Byetes + bmm2Byetes) * pingPongNum * multiCoreParams.get_coreNum());
 
-        if (pseType == PSE_INNER_MUL_ADD_TYPE || pseType == PSE_INNER_MUL_ADD_SQRT_TYPE) {
-            pseAlibiBaseS2 = alignedS2;
-            pseAlibiBaseS1 = std::min(s1BasicBlock, UB_BASIC_LIMIT_SIZE / pseAlibiBaseS2);
-            pseAlibiBaseS1 = std::max(pseAlibiBaseS1, UB_BASIC_LIMIT_SIZE / s1BasicBlock);
-        }
         return ge::GRAPH_SUCCESS;
     }
 
@@ -1742,6 +1679,7 @@ protected:
                       dSize, bSize * n1Size);
             return;
         }
+
     }
 
     bool SetBmm1TilingInput(int64_t tmpS1BasicBlock, int64_t tmpS2BasicBlock, int64_t batch,
@@ -1881,16 +1819,6 @@ protected:
                                 WORK_SPACE_RESERVE_SIZE;
             }
         }
-        if (pseType == PSE_INNER_MUL_ADD_TYPE || pseType == PSE_INNER_MUL_ADD_SQRT_TYPE) {
-            pseAlibiBaseS2 = s2sizeLimitMin;
-            int64_t s2Tail = s2Size % s2sizeLimitMin;
-            if (s2Tail != 0) {
-                pseAlibiBaseS1 = std::min(s1BasicBlock, UB_BASIC_LIMIT_SIZE / AlignUp(s2Tail, FRACTAL_NUM));
-            } else {
-                pseAlibiBaseS1 = std::min(s1BasicBlock, UB_BASIC_LIMIT_SIZE / pseAlibiBaseS2);
-            }
-            pseAlibiBaseS1 = std::max(pseAlibiBaseS1, UB_BASIC_LIMIT_SIZE / s1BasicBlock);
-        }
 
         return ge::GRAPH_SUCCESS;
     }
@@ -1902,13 +1830,11 @@ protected:
         AscendC::SoftMaxFlashV2TilingFunc(softmaxShape, calcTypeSize, sizeof(float), apiMaxUBSize,
                                           tilingData.softmaxFlashTilingData, true, IsBasicBlockInSoftMax(softmaxShape));
     }
-
 };
-
 
 // NOTE manually initialize tiling data in hostapi scenario in highest priority template
 REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1s2Bn2gs1, 96);
 REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingS1Bn2gs1, 97);
 REGISTER_TILING_TEMPLATE("FusedFloydAttention", FusedFloydAttentionTilingB, 98);
-} // namespace FLOYD
+} // namespace FA
 } // namespace optiling

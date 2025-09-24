@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef FUSED_FLOYD_ATTENTION_COMMON_H
-#define FUSED_FLOYD_ATTENTION_COMMON_H
+#ifndef FLASH_ATTENTION_SCORE_COMMON_H
+#define FLASH_ATTENTION_SCORE_COMMON_H
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
@@ -264,4 +264,4 @@ __aicore__ inline void NzToNd(Nz2NdInfo &nz2NdInfo, const GlobalTensor<T> &bmmRe
     bmmResUb.SetShapeInfo(ShapeInfo(2, bmm1ResUbShape, DataFormat::ND));
 }
 
-#endif // FUSED_FLOYD_ATTENTION_COMMON_H
+#endif // FLASH_ATTENTION_SCORE_COMMON_H

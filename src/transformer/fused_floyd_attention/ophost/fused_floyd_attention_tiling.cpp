@@ -28,15 +28,11 @@ using namespace AscendC;
 namespace optiling {
 
 constexpr size_t QUERY_INPUT_INDEX = 0;
-constexpr size_t KEY0_INPUT_INDEX = 1;
-constexpr size_t KEY1_INPUT_INDEX = 2;
-
-constexpr size_t VALUE0_INPUT_INDEX = 3;
-constexpr size_t VALUE1_INPUT_INDEX = 4;
-
+constexpr size_t KEY_INPUT_INDEX = 1;
+constexpr size_t VALUE_INPUT_INDEX = 2;
 constexpr size_t SOFTMAXSUM_OUPUT_INDEX = 1;
-constexpr size_t ATTENTIONOUT_OUPUT_INDEX = 2;
-// constexpr size_t INPUTLAYOUT_ATTRS_INDEX = 5;
+constexpr size_t ATTENTIONOUT_OUPUT_INDEX = 3;
+constexpr size_t INPUTLAYOUT_ATTRS_INDEX = 5;
 constexpr size_t MIN_COPY_UINT_SIZE = 32;
 
 static uint32_t Ceil(uint32_t num1, uint32_t num2)
@@ -52,15 +48,15 @@ public:
     FusedFloydAttentionTilingData tilingData;
 
     void FusedFloydAttentionSetEmptyInputTilingData(gert::TilingContext *context,
-                                                    FusedFloydAttentionTilingData &floydTilingData);
+                                                    FusedFloydAttentionTilingData &faTilingData);
     void GetTilingKeyAttentionScore4EmptyInput(uint32_t &tilingKey, const gert::TilingContext *context);
 };
 
 void FusedFloydAttentionEmptyInputTiling::GetTilingKeyAttentionScore4EmptyInput(uint32_t &tilingKey,
                                                                                 const gert::TilingContext *context)
 {
-    OPS_LOG_E_IF_NULL(context, context->GetInputDesc(KEY0_INPUT_INDEX), return)
-    auto kernelType = context->GetInputDesc(KEY0_INPUT_INDEX)->GetDataType();
+    OPS_LOG_E_IF_NULL(context, context->GetInputDesc(KEY_INPUT_INDEX), return)
+    auto kernelType = context->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
     if (kernelType == ge::DT_FLOAT16) {
         tilingKey = 90;
     } else if (kernelType == ge::DT_FLOAT) {
@@ -71,41 +67,20 @@ void FusedFloydAttentionEmptyInputTiling::GetTilingKeyAttentionScore4EmptyInput(
 }
 
 void FusedFloydAttentionEmptyInputTiling::FusedFloydAttentionSetEmptyInputTilingData(
-    gert::TilingContext *context, FusedFloydAttentionTilingData &floydTilingData)
+    gert::TilingContext *context, FusedFloydAttentionTilingData &faTilingData)
 {
-    //OPS_LOG_E_IF_NULL 是一个 防御式编程宏，用于 空指针检查 + 错误日志记录 + 提前返回，防止空指针解引用引发未定义行为。
     OPS_LOG_E_IF_NULL(context, context->GetRawTilingData(), return)
-    // 调用TilingData类的SaveToBuffer接口完成序列化并保存至TilingContext上下文
-    floydTilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
-
-    context->GetRawTilingData()->SetDataSize(floydTilingData.GetDataSize());
+    faTilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
+    context->GetRawTilingData()->SetDataSize(faTilingData.GetDataSize());
 }
 
 static ge::graphStatus CheckParams(const gert::TilingContext *context)
 {
-    if (context->GetInputShape(QUERY_INPUT_INDEX) != nullptr && context->GetInputShape(KEY0_INPUT_INDEX) != nullptr &&
-        context->GetInputShape(KEY1_INPUT_INDEX) != nullptr && context->GetInputShape(VALUE0_INPUT_INDEX) != nullptr &&
-        context->GetInputShape(VALUE1_INPUT_INDEX) != nullptr && context->GetAttrs() != nullptr) {
+    if (context->GetInputShape(QUERY_INPUT_INDEX) != nullptr && context->GetInputShape(KEY_INPUT_INDEX) != nullptr &&
+        context->GetInputShape(VALUE_INPUT_INDEX) != nullptr && context->GetAttrs() != nullptr) {
         auto &queryShape = context->GetInputShape(QUERY_INPUT_INDEX)->GetStorageShape();
-        auto &key0Shape = context->GetInputShape(KEY0_INPUT_INDEX)->GetStorageShape();
-        auto &key1Shape = context->GetInputShape(KEY1_INPUT_INDEX)->GetStorageShape();
-        auto &value0Shape = context->GetInputShape(VALUE0_INPUT_INDEX)->GetStorageShape();
-        auto &value1Shape = context->GetInputShape(VALUE1_INPUT_INDEX)->GetStorageShape();
-        // 默认五维度输入，其中query为[BHNMD], key0为[BHNKD]， key1为[BHKMD]
-        OPS_ERR_IF((key0Shape != value0Shape), OPS_REPORT_VECTOR_INNER_ERR(context, "key0 or value0 shape is invalid"),
-                    return ge::GRAPH_FAILED);
-        
-        OPS_ERR_IF((key1Shape != value1Shape), OPS_REPORT_VECTOR_INNER_ERR(context, "key1 or value1 shape is invalid"),
-                    return ge::GRAPH_FAILED);
-        
-        OPS_ERR_IF((queryShape.GetDim(0) != key0Shape.GetDim(0)),
-                    OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(1) != key0Shape.GetDim(1)),
-                    OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(0) != key1Shape.GetDim(0)),
-                    OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
-        OPS_ERR_IF((queryShape.GetDim(2) != key1Shape.GetDim(2)),
-                    OPS_REPORT_VECTOR_INNER_ERR(context, "query or key shape is invalid"), return ge::GRAPH_FAILED);
+        auto &keyShape = context->GetInputShape(KEY_INPUT_INDEX)->GetStorageShape();
+        auto &valueShape = context->GetInputShape(VALUE_INPUT_INDEX)->GetStorageShape();
 
         return ge::SUCCESS;
     }
@@ -121,23 +96,17 @@ static bool IsEmptyInput(gert::TilingContext *context)
     auto queryShape = context->GetInputShape(QUERY_INPUT_INDEX);
     OPS_LOG_E_IF_NULL(context, queryShape, return false)
 
-    auto keyShape0 = context->GetInputShape(KEY0_INPUT_INDEX);
-    OPS_LOG_E_IF_NULL(context, keyShape0, return false)
-    auto keyShape1 = context->GetInputShape(KEY1_INPUT_INDEX);
-    OPS_LOG_E_IF_NULL(context, keyShape1, return false)
+    auto keyShape = context->GetInputShape(KEY_INPUT_INDEX);
+    OPS_LOG_E_IF_NULL(context, keyShape, return false)
 
     auto softmaxSumShape = context->GetOutputShape(SOFTMAXSUM_OUPUT_INDEX);
     OPS_LOG_E_IF_NULL(context, softmaxSumShape, return false)
 
     int64_t attentionOutShapeSize = attenOutShape->GetStorageShape().GetShapeSize();
     int64_t queryShapeSize = queryShape->GetStorageShape().GetShapeSize();
-    int64_t key0ShapeSize = keyShape0->GetStorageShape().GetShapeSize();
-    int64_t key1ShapeSize = keyShape1->GetStorageShape().GetShapeSize();
-
+    int64_t keyShapeSize = keyShape->GetStorageShape().GetShapeSize();
     int64_t softmaxSumShapeSize = softmaxSumShape->GetStorageShape().GetShapeSize();
-
-    // 空tensor的处理逻辑，可以暂时不考虑
-    if ((queryShapeSize == 0 || key0ShapeSize == 0 || key1ShapeSize == 0) && (attentionOutShapeSize != 0 || softmaxSumShapeSize != 0)) {
+    if ((queryShapeSize == 0 || keyShapeSize == 0) && (attentionOutShapeSize != 0 || softmaxSumShapeSize != 0)) {
         /* 以 MIN_COPY_UINT_SIZE 为 32Byte说明, blocks为数据的块数, blocks与coreNum存在三种关系:
           (1) blocks % coreNum == 0
              主核数量为coreNum,主核处理块数为blocks / coreNum, 最后一个核处理非32Byte对齐的数据, 尾核数量为0
@@ -153,7 +122,7 @@ static bool IsEmptyInput(gert::TilingContext *context)
         |                                   |                             |       |
         |--------n*(blocks/coreNum+1)-------|-----m*(blocks/coreNum)------|<32Byte|
         */
-        auto kernelType = context->GetInputDesc(KEY0_INPUT_INDEX)->GetDataType();
+        auto kernelType = context->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
         FusedFloydAttentionEmptyInputTiling emptyInputTiling;
         auto compileInfoPtr = reinterpret_cast<const FusedFloydAttentionCompileInfo *>(context->GetCompileInfo());
         OPS_ERR_IF(compileInfoPtr == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context, "compileInfoPtr is null"),
@@ -307,7 +276,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForFusedFloydAttention(gert::Tilin
 
 IMPL_OP(FusedFloydAttention)
     .Tiling(TilingFusedFloydAttention)
-    .TilingInputsDataDependency({0, 1, 2, 3, 4})
+    // .TilingInputsDataDependency({7, 8, 9, 10, 11})
     .TilingParse<FusedFloydAttentionCompileInfo>(TilingPrepareForFusedFloydAttention);  // 向框架注册入口函数
 
 } // namespace optiling

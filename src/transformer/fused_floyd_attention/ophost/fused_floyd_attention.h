@@ -16,9 +16,11 @@
 namespace l0op {
 
 const std::array<const aclTensor *, 3>
-FusedFloydAttention(const aclTensor *query, const aclTensor *key0, const aclTensor *key1,
-                    const aclTensor *value0, const aclTensor *value1, const aclTensor *attenMaskOptional,
-                    float scaleValue, aclOpExecutor *executor);
+FusedFloydAttention(const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0,
+                    const aclTensor *key_1, const aclTensor *value_1,
+                    const aclTensor *attenMaskOptional,
+                    double scaleValueOptional,
+                    aclOpExecutor *executor);
 }
 
 #endif // OP_API_INC_LEVEL0_OP_FUSED_FLOYD_ATTENTION_OP_H_
