@@ -997,11 +997,11 @@ fused_floyd_attention(__gm__ uint8_t *query, __gm__ uint8_t *key_0, __gm__ uint8
     //                                      LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true,
     //                                      CubeFormat::NZ);
     //     return;
-    // } else if (TILING_KEY_IS(10000001010220330943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION s1s2L1Reuse
-    //     INVOKE_FA_GENERAL_OP_IMPL(FusedFloydAttentionS1s2Bn2gs1, ImplModeEnum::AA_HIGH_PRECISION,
-    //                               LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true, CubeFormat::ND,
-    //                               true);
-    //     return;
+    } else if (TILING_KEY_IS(10000001010220330943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION s1s2L1Reuse
+        INVOKE_FA_GENERAL_OP_IMPL(FusedFloydAttentionS1s2Bn2gs1, ImplModeEnum::AA_HIGH_PRECISION,
+                                  LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true, CubeFormat::ND,
+                                  true);
+        return;
     // } else if (TILING_KEY_IS(10000001010220332943UL)) { // SplitS1S2HighPerf: FLOAT16_PRECISION s1s2L1Reuse
     //     INVOKE_FA_GENERAL_OP_IMPL(FusedFloydAttentionS1s2Bn2gs1, ImplModeEnum::AA_INVALID_LINE_HIGH_PRECISION,
     //                               LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true, CubeFormat::ND,
@@ -1025,12 +1025,12 @@ fused_floyd_attention(__gm__ uint8_t *query, __gm__ uint8_t *key_0, __gm__ uint8
     //     INVOKE_FA_GENERAL_OP_IMPL_BMM2NZ(FusedFloydAttentionS1Bn2gs1, ImplModeEnum::AA_INVALID_LINE_HIGH_PRECISION,
     //                               LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true);
     //     return;
-    } else if (TILING_KEY_IS(
-                   10000010102200330953UL)) { // SplitBn2gs1s2S1dDBHighPerf: FLOAT16_PRECISION Bmm1-ND new_L1reuse
-        INVOKE_FA_GENERAL_OP_IMPL_BMM2NZ(FusedFloydAttentionS1Bn2gs1, ImplModeEnum::AA_HIGH_PRECISION,
-                                  LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true, CubeFormat::ND,
-                                  TPosition::GM, CubeFormat::ND, true);
-        return;
+    // } else if (TILING_KEY_IS(
+    //                10000010102200330953UL)) { // SplitBn2gs1s2S1dDBHighPerf: FLOAT16_PRECISION Bmm1-ND new_L1reuse
+    //     INVOKE_FA_GENERAL_OP_IMPL_BMM2NZ(FusedFloydAttentionS1Bn2gs1, ImplModeEnum::AA_HIGH_PRECISION,
+    //                               LayOutTypeEnum::LAYOUT_BNSD, false, true, false, half, float, true, CubeFormat::ND,
+    //                               TPosition::GM, CubeFormat::ND, true);
+    //     return;
     // } else if (TILING_KEY_IS(
     //                10000010102200332953UL)) { // SplitBn2gs1s2S1dDBHighPerf: FLOAT16_PRECISION Bmm1-ND new_L1reuse
     //     INVOKE_FA_GENERAL_OP_IMPL_BMM2NZ(FusedFloydAttentionS1Bn2gs1, ImplModeEnum::AA_INVALID_LINE_HIGH_PRECISION,

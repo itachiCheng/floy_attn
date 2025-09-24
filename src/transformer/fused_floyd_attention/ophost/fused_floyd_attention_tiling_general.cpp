@@ -1744,7 +1744,7 @@ protected:
 
     bool IsCapable() override
     {
-        if (s2Size >= s2sizeLimitMin) {
+        if (s2Size > s2sizeLimitMin) {
             return true;
         }
         return false;
