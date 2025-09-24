@@ -21,17 +21,6 @@ cmake:
 
 src:
   transformer:
-    flash_attention_score:
-      module: True
-      src:
-        - src/transformer/flash_attention_score
-      tests:
-        ut:
-          ops_test:
-            src:
-              - tests/ut/ops_test/src/transformer/flash_attention
-            options:
-              - flash_attention
     fused_floyd_attention:
       module: True
       src:
