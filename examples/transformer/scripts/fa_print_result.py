@@ -38,9 +38,9 @@ def show():
         # print("attention_out's shape: ", attention_out.shape)
         attention_out_raw = np.fromfile('attn.bin', dtype=np.float16)
         print('attn result: ', attention_out_raw)
-        x_max = np.fromfile('x_max.bin', dtype=np.float16)
+        x_max = np.fromfile('x_max.bin', dtype=np.float32)
         print('x_max result: ', x_max)
-        x_sum = np.fromfile('x_sum.bin', dtype=np.float16)
+        x_sum = np.fromfile('x_sum.bin', dtype=np.float32)
         print('x_sum result: ', x_sum)
         absolute_errors = np.abs(attention_out - attention_out_raw)
 
