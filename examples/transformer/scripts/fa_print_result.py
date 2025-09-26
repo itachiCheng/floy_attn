@@ -22,7 +22,7 @@ def show():
     if case_name == 'test_fused_floyd_attention':
         softmax_max = np.fromfile('softmaxMax.bin', dtype=np.float32)
         print('softmaxMax: ', softmax_max)
-
+        print('softmaxMax shape: ', softmax_max.shape)
         softmax_sum = np.fromfile('softmaxSum.bin', dtype=np.float32)
         print('softmaxSum: ', softmax_sum)
 
