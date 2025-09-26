@@ -124,6 +124,8 @@ if case_name == 'test_fused_floyd_attention':
     attn = torch.einsum('bhikj,bhijc->bhikc', weight, v)
 
     attn.cpu().numpy().tofile('attn.bin')
+    x_max.cpu().numpy().tofile('x_max.bin')
+    x_sum.cpu().numpy().tofile('x_sum.bin')
     #######################################################################################################################################
 
 
