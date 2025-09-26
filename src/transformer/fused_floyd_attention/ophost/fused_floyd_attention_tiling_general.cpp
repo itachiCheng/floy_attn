@@ -1687,7 +1687,7 @@ protected:
     {
         bmm1.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmmDtype, false);
         bmm1.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmmDtype, true);
-        bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmm1OutDtype, true);
+        bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmm1OutDtype);
         // 分不满核，且稀疏场景，shape设置的较小能产生更好的tiling
         // bmm1.SetShape(std::min(tmpS1BasicBlock, s1Size),
         //               std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
