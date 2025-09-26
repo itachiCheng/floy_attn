@@ -97,6 +97,12 @@ public:
     using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T>;
     matmul::Matmul<a1Type, b1Type, c1Type, bias1Type, GetMmCfg(enableL1Reuse)> bmm1;
 
+    // using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, LayoutMode::BSNGD>;
+    // using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::BSNGD>;
+    // using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+    // using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, LayoutMode::BNGS1S2>;
+    // matmul::Matmul<a1Type, b1Type, c1Type, bias1Type> bmm1;
+
     using c1NzType = MatmulType<TPosition::GM, CubeFormat::NZ, T>;
     matmul::Matmul<a1Type, b1Type, c1NzType, bias1Type, GetMmCfg(enableL1Reuse)> bmm1Nz;
 
@@ -735,7 +741,9 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             return;
         }
     }
-    this->bmm1.WaitIterateAll();
+    // this->bmm1.WaitIterateAll();
+    // this->bmm1.End();
+    this->bmm1.WaitIterateBatch();
     this->bmm1.End();
 }
 
@@ -827,10 +835,43 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     this->SetBmm1TensorB(extraInfo, bmm1);
     if constexpr (enableL1Reuse) {
         bmm1.template IterateAll<false>(this->mm1Res[extraInfo.taskIdMod2], false, false, true, extraInfo.lastNotPair);
-
     } else {
         bmm1.template IterateAll<false>(this->mm1Res[extraInfo.taskIdMod2], false, false, true);
     }
+
+    //     // 计算gm上的offset
+    // int64_t bOffset = 0;
+
+    // // s1需要考虑inner轴的影响
+    // int64_t s1Offset = 0;
+    // int64_t n2Offset = 0;
+    // int64_t gOffset = 0;
+    // // BNSD
+    // bOffset = extraInfo.boIdx * this->n2GS1D;
+    // n2Offset = extraInfo.n2oIdx * this->gS1D;
+    // gOffset = extraInfo.goIdx * this->s1D;
+    // s1Offset = extraInfo.s1oIdx * this->s1BaseD;
+    // this->qCoreOffset = bOffset + n2Offset + gOffset + s1Offset;
+    // extraInfo.qCoreOffset = this->qCoreOffset;
+    // bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset]);
+
+    // // 计算gm上的offset
+    // bOffset = 0;
+    // n2Offset = 0;
+    // int64_t s2Offset = 0;
+    // // BNSD
+    // bOffset = extraInfo.boIdx * this->n2S2D;
+    // // n2Offset = extraInfo.n2oIdx * this->s2D;
+    // // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
+    // s2Offset = extraInfo.s1oIdx * this->s1BaseD
+    // int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
+    // bmm1.SetTensorB(this->keyGm1[kCoreOffset], true);
+    // // bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
+    // if constexpr (enableL1Reuse) {
+    //     bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2], 1, 1, false, 0, 0, 0, false, 0);
+    // } else {
+    //     bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2], 1, 1, false, 0, 0, 0, false, 0);
+    // }
 }
 
 // template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
@@ -906,6 +947,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
     bmm1.SetTensorB(this->keyGm[kCoreOffset], true);
     bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
+
 }
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
