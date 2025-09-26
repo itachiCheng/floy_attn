@@ -840,7 +840,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     // }
 
     //     // 计算gm上的offset
-    // int64_t bOffset = 0;
+    int64_t bOffset = 0;
 
     // // s1需要考虑inner轴的影响
     int64_t s1Offset = 0;
