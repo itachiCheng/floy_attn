@@ -100,7 +100,7 @@ public:
     using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::SBNGD>;
     using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::SBNGD>;
     using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
-    using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::SBNGD>;
+    using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::BNGS1S2>;
     matmul::Matmul<a1Type, b1Type, c1Type, bias1Type> bmm1;
 
     // using c1NzType = MatmulType<TPosition::GM, CubeFormat::NZ, T>;
