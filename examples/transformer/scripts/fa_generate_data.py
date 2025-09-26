@@ -144,8 +144,11 @@ if case_name == 'test_fused_floyd_attention':
     attention_mask = 1e9 * (mask_npu - 1)                 # (B,1,S,S)
     logits = logits + attention_mask.half()                  # 按旧脚本用 float16 加
     weight, x_max, x_sum = tsoftmax(logits.float())
+
     attn = torch.einsum('bhikj,bhijc->bhikc', weight, v)# + torch.einsum('bhikj,bhijc->bhikc', weight, v1)
     attn.cpu().numpy().tofile('attn.bin')
+    x_max.cpu().numpy().tofile('x_max.bin')
+    x_sum.cpu().numpy().tofile('x_sum.bin')
 
 else:
     raise RuntimeError(f"Invalid case name:", case_name)
