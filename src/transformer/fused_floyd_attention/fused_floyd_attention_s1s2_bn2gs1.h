@@ -741,10 +741,10 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             return;
         }
     }
-    this->bmm1.WaitIterateAll();
-    this->bmm1.End();
-    // this->bmm1.WaitIterateBatch();
+    // this->bmm1.WaitIterateAll();
     // this->bmm1.End();
+    this->bmm1.WaitIterateBatch();
+    this->bmm1.End();
 }
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
