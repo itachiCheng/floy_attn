@@ -1707,8 +1707,8 @@ protected:
         //     }
         // }
         // return true;
-        bmm1.SetShape(1, 1024, 32); // 512 512 32
-        bmm1.SetOrgShape(1024, 1024, 32);
+        bmm1.SetShape(1024, 1024, 32); // 512 512 32
+        bmm1.SetOrgShape(1, 1024, 32);
         bmm1.SetALayout(1, 1, 1, 128, 32); // BSNGD
         bmm1.SetBLayout(1, 1024, 1, 128, 32); // S BNG D  128 16 128
         bmm1.SetCLayout(1, 1, 128, 1, 1024);
