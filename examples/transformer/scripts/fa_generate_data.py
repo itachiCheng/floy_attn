@@ -129,8 +129,8 @@ if case_name == 'test_fused_floyd_attention':
     query = np.fromfile(os.path.join(os.path.dirname(__file__), "query.bin"), dtype=np.float16, ).reshape(B, H, N, M, D)
     key = np.fromfile(os.path.join(os.path.dirname(__file__), "key.bin"), dtype=np.float16).reshape(B, H, N, K, D)
     value = np.fromfile(os.path.join(os.path.dirname(__file__), "value.bin"), dtype=np.float16).reshape(B, H, N, K, D)
-    key1 = np.fromfile(os.path.join(os.path.dirname(__file__), "key1.bin"), dtype=np.float16).reshape(B, H, N, K, D)
-    value1 = np.fromfile(os.path.join(os.path.dirname(__file__), "value1.bin"), dtype=np.float16).reshape(B, H, N, K, D)
+    key1 = np.fromfile(os.path.join(os.path.dirname(__file__), "key1.bin"), dtype=np.float16).reshape(B, H, K, M, D)
+    value1 = np.fromfile(os.path.join(os.path.dirname(__file__), "value1.bin"), dtype=np.float16).reshape(B, H, K, M, D)
     
     mask = 1 - np.fromfile(os.path.join(os.path.dirname(__file__), "atten_mask.bin"), dtype=np.uint8).reshape(B, H, N, M, K)
     mask = mask.astype(np.float32)
@@ -140,7 +140,7 @@ if case_name == 'test_fused_floyd_attention':
     k1 = torch.from_numpy(key1).to(device)
     v1 = torch.from_numpy(value1).to(device)
     mask_npu = torch.from_numpy(mask).to(device)  # float32
-    logits = torch.einsum('bhikc,bhijc->bhikj', q, k)# + torch.einsum('bhikc,bhijc->bhikj', q, k1)
+    logits = torch.einsum('bhikc,bhjkc->bhikj', q, k1)#  torch.einsum('bhikc,bhijc->bhikj', q, k)# + 
     attention_mask = 1e9 * (mask_npu - 1)                 # (B,1,S,S)
     logits = logits + attention_mask.half()                  # 按旧脚本用 float16 加
     weight, x_max, x_sum = tsoftmax(logits.float())
