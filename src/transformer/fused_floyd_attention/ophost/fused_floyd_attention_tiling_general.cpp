@@ -1688,32 +1688,32 @@ protected:
         bmm1.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmmDtype, false);
         bmm1.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmmDtype, true);
         bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmm1OutDtype);
-        // // 分不满核，且稀疏场景，shape设置的较小能产生更好的tiling
-        // bmm1.SetShape(std::min(tmpS1BasicBlock, s1Size),
-        //               std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
-        // bmm1.SetOrgShape(s1Size, tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s1StrideSize, s2StrideSize);
-        // bmm1.SetBias(false);
-        // if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
-        //     return false;
-        // }
-        // if (dSize > BMM1_BASICBLOCK_K_64 && dSize <= BMM1_BASICBLOCK_K_128 && inputDtypeBytes != DATA_TYPE_FP32) {
-        //     int64_t baseM = std::min(tmpS1BasicBlock, AlignUp(s1Size, FRACTAL_NUM));
-        //     bmm1.SetFixSplit(baseM, BMM1_BASICBLOCK_N_128, dSize);
-        // }
+        // 分不满核，且稀疏场景，shape设置的较小能产生更好的tiling
+        bmm1.SetShape(std::min(tmpS1BasicBlock, s1Size),
+                      std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
+        bmm1.SetOrgShape(s1Size, tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s1StrideSize, s2StrideSize);
+        bmm1.SetBias(false);
+        if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
+            return false;
+        }
+        if (dSize > BMM1_BASICBLOCK_K_64 && dSize <= BMM1_BASICBLOCK_K_128 && inputDtypeBytes != DATA_TYPE_FP32) {
+            int64_t baseM = std::min(tmpS1BasicBlock, AlignUp(s1Size, FRACTAL_NUM));
+            bmm1.SetFixSplit(baseM, BMM1_BASICBLOCK_N_128, dSize);
+        }
 
-        // if (IsSpecialShape()) {
-        //     if (bmm1.SetFixSplit(BMM1_BASICBLOCK_M_128, BMM1_BASICBLOCK_N_256, BMM1_BASICBLOCK_K_64) != 0) {
-        //         return false;
-        //     }
-        // }
-        // return true;
-        bmm1.SetShape(1, 1024, 32); // 512 512 32
-        bmm1.SetOrgShape(1, 1024, 32);
-        bmm1.SetALayout(1, 1, 1, 128, 32); // BSNGD
-        bmm1.SetBLayout(1, 1024, 1, 128, 32); // S BNG D  128 16 128
-        bmm1.SetCLayout(1, 1, 1, 128, 1024);
-        bmm1.SetBatchNum(1);
+        if (IsSpecialShape()) {
+            if (bmm1.SetFixSplit(BMM1_BASICBLOCK_M_128, BMM1_BASICBLOCK_N_256, BMM1_BASICBLOCK_K_64) != 0) {
+                return false;
+            }
+        }
         return true;
+        // bmm1.SetShape(1, 1024, 32); // 512 512 32
+        // bmm1.SetOrgShape(1, 1024, 32);
+        // bmm1.SetALayout(1, 1, 1, 128, 32); // BSNGD
+        // bmm1.SetBLayout(1, 1024, 1, 128, 32); // S BNG D  128 16 128
+        // bmm1.SetCLayout(1, 1, 1, 128, 1024);
+        // bmm1.SetBatchNum(1);
+        // return true;
 
     }
 
