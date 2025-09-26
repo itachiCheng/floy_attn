@@ -97,10 +97,10 @@ public:
     // using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T>;
     // matmul::Matmul<a1Type, b1Type, c1Type, bias1Type, GetMmCfg(enableL1Reuse)> bmm1;
 
-    using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::BSNGD>;
-    using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::BSNGD>;
+    using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::SBNGD>;
+    using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::SBNGD>;
     using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
-    using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::BSNGD>;
+    using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::SBNGD>;
     matmul::Matmul<a1Type, b1Type, c1Type, bias1Type> bmm1;
 
     // using c1NzType = MatmulType<TPosition::GM, CubeFormat::NZ, T>;
