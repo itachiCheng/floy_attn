@@ -865,6 +865,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         AscendC::printf("this.s2BaseNratioD is %d\n", this->s2BaseNratioD);
     }
     // n2Offset = extraInfo.n2oIdx * this->s2D;
+    n2Offset = extraInfo.s2LoopCount * 1024 * 2048 * 32;
     // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
     s2Offset = extraInfo.s1oIdx * this->s1BaseD;
     int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
