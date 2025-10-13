@@ -743,8 +743,8 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     }
     // this->bmm1.WaitIterateAll();
     // this->bmm1.End();
-    this->bmm1.WaitIterateBatch();
-    this->bmm1.End();
+    // this->bmm1.WaitIterateBatch();
+    // this->bmm1.End();
 }
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
@@ -840,41 +840,52 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     // }
 
     // //     计算gm上的offset
-    int64_t bOffset = 0;
+    // int64_t bOffset = 0;
 
-    // // s1需要考虑inner轴的影响
-    int64_t s1Offset = 0;
-    int64_t n2Offset = 0;
-    int64_t gOffset = 0;
-    // BNSD
-    bOffset = extraInfo.boIdx * this->n2GS1D;
-    n2Offset = extraInfo.n2oIdx * this->gS1D;
-    gOffset = extraInfo.goIdx * this->s1D;
-    s1Offset = extraInfo.s1oIdx * this->s1BaseD;
-    this->qCoreOffset = bOffset + n2Offset + gOffset + s1Offset;
-    extraInfo.qCoreOffset = this->qCoreOffset;
-    // 计算gm上的offset
-    bOffset = 0;
-    n2Offset = 0;
-    int64_t s2Offset = 0;
-    // BNSD
-    bOffset = extraInfo.boIdx * this->n2S2D;
-    // n2Offset = extraInfo.n2oIdx * this->s2D;
-    // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
-    s2Offset = extraInfo.s1oIdx * this->s1BaseD;
-    int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
-    for (int idx = 0; idx < 128; idx++) {
-        bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx*32]);
+    // // // s1需要考虑inner轴的影响
+    // int64_t s1Offset = 0;
+    // int64_t n2Offset = 0;
+    // int64_t gOffset = 0;
+    // // BNSD
+    // bOffset = extraInfo.boIdx * this->n2GS1D;
+    // n2Offset = extraInfo.n2oIdx * this->gS1D;
+    // gOffset = extraInfo.goIdx * this->s1D;
+    // s1Offset = extraInfo.s1oIdx * this->s1BaseD;
+    // this->qCoreOffset = bOffset + n2Offset + gOffset + s1Offset;
+    // extraInfo.qCoreOffset = this->qCoreOffset;
+    // // 计算gm上的offset
+    // bOffset = 0;
+    // n2Offset = 0;
+    // int64_t s2Offset = 0;
+    // // BNSD
+    // bOffset = extraInfo.boIdx * this->n2S2D;
+    // // n2Offset = extraInfo.n2oIdx * this->s2D;
+    // // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
+    // s2Offset = extraInfo.s1oIdx * this->s1BaseD;
+    // int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
+    // for (int idx = 0; idx < 128; idx++) {
+    //     bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx*32]);
 
-        bmm1.SetTensorB(this->keyGm1[kCoreOffset + idx*32], true);
-        // bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
-        if constexpr (enableL1Reuse) {
-            bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
-        } else {
-            bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
-        }
+    //     bmm1.SetTensorB(this->keyGm1[kCoreOffset + idx*32], true);
+    //     // bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
+    //     if constexpr (enableL1Reuse) {
+    //         bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+    //     } else {
+    //         bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+    //     }
+    // }
+
+    // 需要增加batch基地址
+    int64_t loops = this->s1BaseSize;
+    uint32_t batchNum = 1;
+    int64_t bs1Offset = extraInfo.boIdx * this->n2GS1D + extraInfo.s1oIdx * this->s1BaseD;
+    for (int64_t idx = 0; idx < loops; ++idx) {   // 确定this->s1BaseSize 是否tail
+
+        bmm1k1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx * this->dSize]);
+        int64_t kCoreOffset = bs1Offset + idx * dSize;
+        bmm1k1.SetTensorB(this->keyGm1[kCoreOffset], true);
+        bmm1k1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], batchNum, batchNum, false, 0, 0, 0, false, 0);
     }
-
 
 
 }
