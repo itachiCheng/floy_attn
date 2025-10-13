@@ -860,10 +860,10 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     // BNSD
     bOffset = extraInfo.boIdx * this->n2S2D;
     
-    if (0 == this->blockIdx) {
-        AscendC::printf("extraInfo.s2LoopCount is %d\n", extraInfo.s2LoopCount);
-        AscendC::printf("this.s2BaseNratioD is %d\n", this->s2BaseNratioD);
-    }
+    // if (0 == this->blockIdx) {
+    //     AscendC::printf("extraInfo.s2LoopCount is %d\n", extraInfo.s2LoopCount);
+    //     AscendC::printf("this.s2BaseNratioD is %d\n", this->s2BaseNratioD);
+    // }
     // n2Offset = extraInfo.n2oIdx * this->s2D;
     n2Offset = extraInfo.s2LoopCount * 1024 * 2048 * 32;
     // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
