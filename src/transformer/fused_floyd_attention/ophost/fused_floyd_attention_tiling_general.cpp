@@ -1707,7 +1707,7 @@ protected:
             }
         }
         return true;
-        
+
         // bmm1.SetShape(1, 1024, 32); // 512 512 32
         // bmm1.SetOrgShape(1, 1024, 32);
         // bmm1.SetALayout(1, 1, 1, 128, 32); // BSNGD
@@ -1753,7 +1753,7 @@ protected:
 
     bool IsCapable() override
     {
-        if (s2Size > s2sizeLimitMin) {
+        if (s2Size >= s2sizeLimitMin) {
             return true;
         }
         return false;
