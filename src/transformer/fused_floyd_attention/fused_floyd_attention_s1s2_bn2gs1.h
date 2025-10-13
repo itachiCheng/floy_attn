@@ -743,8 +743,8 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     }
     // this->bmm1.WaitIterateAll();
     // this->bmm1.End();
-    // this->bmm1.WaitIterateBatch();
-    // this->bmm1.End();
+    this->bmm1.WaitIterateBatch();
+    this->bmm1.End();
 }
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
@@ -884,7 +884,8 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx * this->dSize]);
         int64_t kCoreOffset = bs1Offset + idx * dSize;
         bmm1.SetTensorB(this->keyGm1[kCoreOffset], true);
-        bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], batchNum, batchNum, false, 0, 0, 0, false, 0);
+        // bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], batchNum, batchNum, false, 0, 0, 0, false, 0);
+        bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
     }
 
 
