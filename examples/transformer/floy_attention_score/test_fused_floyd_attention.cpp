@@ -277,6 +277,7 @@ int main(int argc, char **argv)
     // 五维数据修改
     std::vector<int64_t> qShape = {B, H, N, M, D};
     std::vector<int64_t> kShape = {B, H, N, K, D};
+    std::vector<int64_t> k1Shape = {B, H, K, M, D};
     std::vector<int64_t> vShape = {B, H, N, K, D};
     std::vector<int64_t> attnShape = {B, H, N, M, K};
     std::vector<int64_t> attentionOutShape = {B, H, N, M, D};
@@ -347,7 +348,7 @@ int main(int argc, char **argv)
 
     std::string k1FilePath = "../../../../../examples/transformer/scripts/key1.bin";
 
-    ret = CreateAclTensor(k1FilePath, kShape, 2, &k1DeviceAddr, aclDataType::ACL_FLOAT16, &k1);
+    ret = CreateAclTensor(k1FilePath, k1Shape, 2, &k1DeviceAddr, aclDataType::ACL_FLOAT16, &k1);
     CHECK_RET(ret == ACL_SUCCESS,
               FreeResource(q, k, v, k1, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr, k1DeviceAddr, v1DeviceAddr, attnDeviceAddr,
                   attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
