@@ -1693,9 +1693,9 @@ protected:
         //               std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
         // bmm1.SetOrgShape(s1Size, tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s1StrideSize, s2StrideSize);
         bmm1.SetBias(false);
-        // if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
-        //     return false;
-        // }
+        if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
+            return false;
+        }
         if (dSize > BMM1_BASICBLOCK_K_64 && dSize <= BMM1_BASICBLOCK_K_128 && inputDtypeBytes != DATA_TYPE_FP32) {
             int64_t baseM = std::min(tmpS1BasicBlock, AlignUp(s1Size, FRACTAL_NUM));
             bmm1.SetFixSplit(baseM, BMM1_BASICBLOCK_N_128, dSize);
