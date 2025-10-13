@@ -1689,10 +1689,10 @@ protected:
         bmm1.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmmDtype, true);
         bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmm1OutDtype);
         // // 分不满核，且稀疏场景，shape设置的较小能产生更好的tiling
-        bmm1.SetShape(std::min(tmpS1BasicBlock, s1Size),
-                      std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
-        bmm1.SetOrgShape(s1Size, tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s1StrideSize, s2StrideSize);
-        bmm1.SetBias(false);
+        // bmm1.SetShape(std::min(tmpS1BasicBlock, s1Size),
+        //               std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
+        // bmm1.SetOrgShape(s1Size, tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s1StrideSize, s2StrideSize);
+        // bmm1.SetBias(false);
         if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
             return false;
         }
@@ -1718,9 +1718,9 @@ protected:
         // return true;
 
         // B, b;  N, n2; M, s1; D, d;  K s2
-        // bmm1.SetShape(1, 1024, 32); // N, K, D
-        // bmm1.SetOrgShape(1, 1024, 32);
-        // bmm1.SetBias(false);
+        bmm1.SetShape(1, 1024, 32); // N, K, D
+        bmm1.SetOrgShape(1, 1024, 32);
+        bmm1.SetBias(false);
         // bmm1.SetBufferSpace(-1, -1, -1);
         // 输入顺序B S N G D   SBNGD
         bmm1.SetALayout(1, 1, 1, 1024, 32); //     [1, 128, D]   NMD, KMD  SBNGD
