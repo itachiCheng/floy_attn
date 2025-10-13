@@ -1718,8 +1718,8 @@ protected:
         // return true;
 
         // B, b;  N, n2; M, s1; D, d;  K s2
-        bmm1.SetShape(1, 1024, 32); // N, K, D
-        bmm1.SetOrgShape(1, 1024, 32);
+        bmm1.SetShape(1, 2048, 32); // N, K, D
+        bmm1.SetOrgShape(1, 2048, 32);
         bmm1.SetBias(false);
         // bmm1.SetBufferSpace(-1, -1, -1);
         // 输入顺序B S N G D   SBNGD
