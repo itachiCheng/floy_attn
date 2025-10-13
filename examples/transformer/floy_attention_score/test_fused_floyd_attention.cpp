@@ -279,6 +279,7 @@ int main(int argc, char **argv)
     std::vector<int64_t> kShape = {B, H, N, K, D};
     std::vector<int64_t> k1Shape = {B, H, K, M, D};
     std::vector<int64_t> vShape = {B, H, N, K, D};
+    std::vector<int64_t> v1Shape = {B, H, K, M, D};
     std::vector<int64_t> attnShape = {B, H, N, M, K};
     std::vector<int64_t> attentionOutShape = {B, H, N, M, D};
     std::vector<int64_t> softmaxMaxShape = {B, H, N, M, 8};
@@ -357,7 +358,7 @@ int main(int argc, char **argv)
 
     std::string v1FilePath = "../../../../../examples/transformer/scripts/value1.bin";
 
-    ret = CreateAclTensor(v1FilePath, vShape, 2, &v1DeviceAddr, aclDataType::ACL_FLOAT16, &v1);
+    ret = CreateAclTensor(v1FilePath, v1Shape, 2, &v1DeviceAddr, aclDataType::ACL_FLOAT16, &v1);
     CHECK_RET(ret == ACL_SUCCESS,
               FreeResource(q, k, v, k1, v1, attentionOut, softmaxMax, softmaxSum, qDeviceAddr, kDeviceAddr, vDeviceAddr, k1DeviceAddr, v1DeviceAddr, attnDeviceAddr,
                   attentionOutDeviceAddr, softmaxMaxDeviceAddr, softmaxSumDeviceAddr, workspaceSize, workspaceAddr,
