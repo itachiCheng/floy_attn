@@ -6,3 +6,4 @@ examples/transformer/scripts/key1.bin
 examples/transformer/scripts/query.bin
 examples/transformer/scripts/value.bin
 examples/transformer/scripts/value1.bin
+output/
