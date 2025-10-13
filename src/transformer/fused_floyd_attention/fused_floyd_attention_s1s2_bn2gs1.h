@@ -881,10 +881,10 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     int64_t bs1Offset = extraInfo.boIdx * this->n2GS1D + extraInfo.s1oIdx * this->s1BaseD;
     for (int64_t idx = 0; idx < loops; ++idx) {   // 确定this->s1BaseSize 是否tail
 
-        bmm1k1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx * this->dSize]);
+        bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx * this->dSize]);
         int64_t kCoreOffset = bs1Offset + idx * dSize;
-        bmm1k1.SetTensorB(this->keyGm1[kCoreOffset], true);
-        bmm1k1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], batchNum, batchNum, false, 0, 0, 0, false, 0);
+        bmm1.SetTensorB(this->keyGm1[kCoreOffset], true);
+        bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], batchNum, batchNum, false, 0, 0, 0, false, 0);
     }
 
 
