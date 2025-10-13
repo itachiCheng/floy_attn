@@ -92,11 +92,11 @@ if case_name == 'test_fused_floyd_attention':
     device = torch.device('npu')
 
     #######################################################生成数据+小算子拼接###############################################################
-    query = np.random.uniform(2, 5, (B, H, N, M, D)).astype(dtype)
-    key = np.random.uniform(2, 5, (B, H, N, K, D)).astype(dtype)
-    value = np.random.uniform(2, 5, (B, H, N, K, D)).astype(dtype)
-    key1 = np.random.uniform(2, 5, (B, H, K, M, D)).astype(dtype)
-    value1 = np.random.uniform(2, 5, (B, H, K, M, D)).astype(dtype)
+    query = np.random.uniform(-1, 1, (B, H, N, M, D)).astype(dtype)
+    key = np.random.uniform(-1, 1, (B, H, N, K, D)).astype(dtype)
+    value = np.random.uniform(-1, 1, (B, H, N, K, D)).astype(dtype)
+    key1 = np.random.uniform(-1, 1, (B, H, K, M, D)).astype(dtype)
+    value1 = np.random.uniform(-1, 1, (B, H, K, M, D)).astype(dtype)
     mask = np.concatenate((np.ones((B, H, N, M, K - K//2)).astype(np.float32), np.zeros((B, H, N, M, K//2)).astype(np.float32)), axis=-1)
 
     evo_mask = 1 - mask.astype(np.uint8)
