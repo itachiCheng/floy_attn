@@ -865,14 +865,14 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     //     AscendC::printf("this.s2BaseNratioD is %d\n", this->s2BaseNratioD);
     // }
     // n2Offset = extraInfo.n2oIdx * this->s2D;
-    n2Offset = extraInfo.s2LoopCount * 1024 * 2048 * 64;
+    n2Offset = extraInfo.s2LoopCount * 1024 * 2048 * 32;
     // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
     s2Offset = extraInfo.s1oIdx * this->s1BaseD;
     int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
     for (int idx = 0; idx < 128; idx++) {
-        bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx*64]);
+        bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx*32]);
 
-        bmm1.SetTensorB(this->keyGm1[kCoreOffset + idx*64], true);
+        bmm1.SetTensorB(this->keyGm1[kCoreOffset + idx*32], true);
         // bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
         if constexpr (enableL1Reuse) {
             bmm1.template IterateBatch<true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
