@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 {
     // 1. （固定写法）device/context/stream初始化，参考AscendCL对外接口列表
     // 根据自己的实际device填写deviceId
-    int32_t deviceId = 7;
+    int32_t deviceId = 0;
     aclrtContext context;
     aclrtStream stream;
     auto ret = Init(deviceId, &context, &stream);
