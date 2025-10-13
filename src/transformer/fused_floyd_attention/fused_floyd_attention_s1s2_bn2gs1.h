@@ -97,8 +97,8 @@ public:
     // using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T>;
     // matmul::Matmul<a1Type, b1Type, c1Type, bias1Type, GetMmCfg(enableL1Reuse)> bmm1;
 
-    using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::SBNGD>;
-    using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::SBNGD>;
+    using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::BSNGD>;
+    using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::BSNGD>;
     using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
     using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::BNGS1S2>;
     matmul::Matmul<a1Type, b1Type, c1Type, bias1Type> bmm1;
@@ -858,12 +858,12 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     n2Offset = 0;
     int64_t s2Offset = 0;
     // BNSD
-    // bOffset = extraInfo.boIdx * this->n2S2D;
+    bOffset = extraInfo.boIdx * this->n2S2D;
     
     // n2Offset = extraInfo.n2oIdx * this->s2D;
     // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
     s2Offset = extraInfo.s1oIdx * this->s1BaseD;
-    int64_t kCoreOffset = bOffset + s2Offset;
+    int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
     for (int idx = 0; idx < 128; idx++) {
         bmm1.SetTensorA(this->queryGm[extraInfo.qCoreOffset + idx*32]);
 
