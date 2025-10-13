@@ -1693,19 +1693,19 @@ protected:
         //               std::min(tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s2Size), dSize);
         // bmm1.SetOrgShape(s1Size, tmpS2BasicBlock * tilingData.coreParams.get_nRatio(), s1StrideSize, s2StrideSize);
         // bmm1.SetBias(false);
-        if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
-            return false;
-        }
-        if (dSize > BMM1_BASICBLOCK_K_64 && dSize <= BMM1_BASICBLOCK_K_128 && inputDtypeBytes != DATA_TYPE_FP32) {
-            int64_t baseM = std::min(tmpS1BasicBlock, AlignUp(s1Size, FRACTAL_NUM));
-            bmm1.SetFixSplit(baseM, BMM1_BASICBLOCK_N_128, dSize);
-        }
+        // if (bmm1.SetBufferSpace(aicoreParams_.l1Size, aicoreParams_.l0cSize) != 0) {
+        //     return false;
+        // }
+        // if (dSize > BMM1_BASICBLOCK_K_64 && dSize <= BMM1_BASICBLOCK_K_128 && inputDtypeBytes != DATA_TYPE_FP32) {
+        //     int64_t baseM = std::min(tmpS1BasicBlock, AlignUp(s1Size, FRACTAL_NUM));
+        //     bmm1.SetFixSplit(baseM, BMM1_BASICBLOCK_N_128, dSize);
+        // }
 
-        if (IsSpecialShape()) {
-            if (bmm1.SetFixSplit(BMM1_BASICBLOCK_M_128, BMM1_BASICBLOCK_N_256, BMM1_BASICBLOCK_K_64) != 0) {
-                return false;
-            }
-        }
+        // if (IsSpecialShape()) {
+        //     if (bmm1.SetFixSplit(BMM1_BASICBLOCK_M_128, BMM1_BASICBLOCK_N_256, BMM1_BASICBLOCK_K_64) != 0) {
+        //         return false;
+        //     }
+        // }
         // // return true;
 
         // bmm1.SetShape(1, 1024, 32); // 512 512 32
@@ -1723,8 +1723,8 @@ protected:
         bmm1.SetBias(false);
         // bmm1.SetBufferSpace(-1, -1, -1);
         // 输入顺序B S N G D   SBNGD
-        bmm1.SetALayout(1, 1, 1, 1024, 32); //     [1, 128, D]   NMD, KMD  SBNGD
-        bmm1.SetBLayout(1, 1024, 1, 1024, 32); //  [1024, 128, D]
+        bmm1.SetALayout(1, 1, 1, 2048, 32); //     [1, 128, D]   NMD, KMD  SBNGD
+        bmm1.SetBLayout(1, 1024, 1, 2048, 32); //  [1024, 128, D]
         bmm1.SetCLayout(1, 1, 1, 128, 1024);  // 1,1,1,1024,1024
         bmm1.SetBatchNum(1);
 
