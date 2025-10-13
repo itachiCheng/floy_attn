@@ -1710,8 +1710,9 @@ protected:
 
         bmm1.SetShape(1, 1024, 32); // 512 512 32
         bmm1.SetOrgShape(1, 1024, 32);
-        bmm1.SetALayout(1, 1, 1, 1024, 32); // BSNGD
-        bmm1.SetBLayout(1, 1024, 1, 1024, 32); // S BNG D  128 16 128
+        bmm1.SetBias(false);
+        bmm1.SetALayout(1, 1, 1, 1024, 32); // SBNGD
+        bmm1.SetBLayout(1, 1024, 1, 1024, 32); // SBNGD  128 16 128
         bmm1.SetCLayout(1, 1, 1, 128, 1024);
         bmm1.SetBatchNum(1);
         return true;
