@@ -743,8 +743,8 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     }
     // this->bmm1.WaitIterateAll();
     // this->bmm1.End();
-    this->bmm1.WaitIterateBatch();
-    this->bmm1.End();
+    // this->bmm1.WaitIterateBatch();
+    // this->bmm1.End();
 }
 
 template <ImplModeEnum implMode, LayOutTypeEnum layOutType, bool hasPse, bool hasAtten, bool hasDrop, typename INPUT_T,
@@ -870,9 +870,12 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         bmm1.SetTensorB(this->keyGm1[kCoreOffset + idx*32], true);
         // bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
         if constexpr (enableL1Reuse) {
-            bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+            // bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+            // bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+            bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], 1, 1, false, 0, 0, 0, false, 0);
         } else {
-            bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+            // bmm1.template IterateBatch<false, true>(this->mm1Res[extraInfo.taskIdMod2][idx*1024], 1, 1, false, 0, 0, 0, false, 0);
+            bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], 1, 1, false, 0, 0, 0, false, 0);
         }
     }
 
