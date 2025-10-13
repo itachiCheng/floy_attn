@@ -1723,8 +1723,8 @@ protected:
         bmm1.SetBias(false);
         // bmm1.SetBufferSpace(-1, -1, -1);
         // 输入顺序B S N G D   SBNGD
-        bmm1.SetALayout(1, 1, 1, 1280, 32); //     [1, 128, D]   NMD, KMD  SBNGD
-        bmm1.SetBLayout(1, 1024, 1, 1280, 32); //  [1024, 128, D]
+        bmm1.SetALayout(1, 1, 1, 1536, 32); //     [1, 128, D]   NMD, KMD  SBNGD
+        bmm1.SetBLayout(1, 1024, 1, 1536, 32); //  [1024, 128, D]
         bmm1.SetCLayout(1, 1, 1, 128, 1024);  // 1,1,1,1024,1024
         bmm1.SetBatchNum(1);
 
