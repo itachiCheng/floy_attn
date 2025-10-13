@@ -1,2 +1,8 @@
 build/
-examples/transformer/scripts/*.bin
+examples/transformer/scripts/atten_mask.bin
+examples/transformer/scripts/attn.bin
+examples/transformer/scripts/key.bin
+examples/transformer/scripts/key1.bin
+examples/transformer/scripts/query.bin
+examples/transformer/scripts/value.bin
+examples/transformer/scripts/value2.bin
