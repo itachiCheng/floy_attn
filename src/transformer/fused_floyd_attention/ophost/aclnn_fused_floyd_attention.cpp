@@ -76,6 +76,9 @@ struct FaShapeInfo {
     FVector<int64_t, DIM_NUM_4> perm_out;
     FVector<int64_t, DIM_NUM_4> reshapedQueryShape;
     FVector<int64_t, DIM_NUM_4> reshapedKeyValueShape;
+    // FIXED ADD
+    FVector<int64_t, DIM_NUM_4> reshapedKey1ValueShape;
+
     FVector<int64_t, DIM_NUM_4> reshapedAttenMaskShape;
     bool needPad = false;
     bool needTranspose = false;
@@ -86,24 +89,26 @@ void AnalysisAxisForBnsd(const Shape &qShape, const Shape &kShape, FaShapeInfo &
 {
     shapeInfo.inputLayout = InputLayout::BNSD;
     shapeInfo.l0InputLayoutStr = "BNSD";
+
+    // NMD NKD KMD
     shapeInfo.axes.b = qShape[0]*qShape[1];
-    shapeInfo.axes.n2 = kShape[2];
-    shapeInfo.axes.s1 = qShape[3];
-    shapeInfo.axes.s2 = kShape[3];
+    shapeInfo.axes.n2 = kShape[2];  // N
+    shapeInfo.axes.s1 = qShape[3];  // M
+    shapeInfo.axes.s2 = kShape[3];  // K
     shapeInfo.axes.d = qShape[4];
 }
 
-aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key_0,
+aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key_0, const aclTensor *key_1,
                          FaShapeInfo &shapeInfo)
 {
     Shape kShape = key_0->GetViewShape();
+    Shape k1Shape = key_1->GetViewShape();
     Shape qShape = query->GetViewShape();
     shapeInfo.dimNum = qShape.GetDimNum();
 
     std::string inputLayoutStr = "BNSD";
 
     if (inputLayoutStr == "BNSD") {
-
         AnalysisAxisForBnsd(qShape, kShape, shapeInfo);
     } else {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "not support input_layout %s with dim_num %lu", inputLayoutStr, shapeInfo.dimNum);
@@ -120,6 +125,10 @@ void SetShapeInfoForBnsd(int64_t alignedH1Size, FaShapeInfo &shapeInfo)
         shapeInfo.reshapedQueryShape.assign({shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s1, shapeInfo.axes.d});
         shapeInfo.reshapedKeyValueShape.assign(
             {shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s2, shapeInfo.axes.d});
+        // FIXED
+        shapeInfo.reshapedKey1ValueShape.assign(
+            {shapeInfo.axes.b, shapeInfo.axes.s2, shapeInfo.axes.s1, shapeInfo.axes.d});
+
         shapeInfo.reshapedAttenMaskShape.assign(
             {shapeInfo.axes.b, shapeInfo.axes.n2, shapeInfo.axes.s1, shapeInfo.axes.s2});
     }
@@ -187,10 +196,10 @@ aclnnStatus InputDtypeCheck(const aclTensor *query, const aclTensor *key_0, cons
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AnalysisInput(const aclTensor *query, const aclTensor *key_0,
+aclnnStatus AnalysisInput(const aclTensor *query, const aclTensor *key_0, const aclTensor *key_1,
                           FaShapeInfo &shapeInfo)
 {
-    CHECK_RET(AnalysisAxis(query, key_0, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(AnalysisAxis(query, key_0, key_1, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
     if (shapeInfo.axes.d > HEAD_DIM_MAX) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Head dim must <= 512, but got %ld", shapeInfo.axes.d);
@@ -275,21 +284,25 @@ aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key_0, cons
             executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
             executor);
         CHECK_RET(key_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
         value_0 = l0op::Reshape(
             value_0,
             executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
             executor);
         CHECK_RET(value_0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
         key_1 = l0op::Reshape(
             key_1,
-            executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
+            executor->AllocIntArray(shapeInfo.reshapedKey1ValueShape.data(), shapeInfo.reshapedKey1ValueShape.size()),
             executor);
         CHECK_RET(key_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
         value_1 = l0op::Reshape(
             value_1,
-            executor->AllocIntArray(shapeInfo.reshapedKeyValueShape.data(), shapeInfo.reshapedKeyValueShape.size()),
+            executor->AllocIntArray(shapeInfo.reshapedKey1ValueShape.data(), shapeInfo.reshapedKey1ValueShape.size()),
             executor);
         CHECK_RET(value_1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
         attenMaskOptional = l0op::Reshape(
             attenMaskOptional,
             executor->AllocIntArray(shapeInfo.reshapedAttenMaskShape.data(), shapeInfo.reshapedAttenMaskShape.size()),
@@ -351,9 +364,10 @@ aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
         return ACLNN_SUCCESS;
     }
 
+
     CHECK_RET(InputDtypeCheck(query, key_0, value_0) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     FaShapeInfo shapeInfo;
-    CHECK_RET(AnalysisInput(query, key_0, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(AnalysisInput(query, key_0, key_1, shapeInfo) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
 
@@ -366,6 +380,7 @@ aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
     auto l0FusedFloydAttentionOuts = l0op::FusedFloydAttention(
         query, key_0, value_0, key_1, value_1, attenMaskOptional,
         scaleValueOptional, l0Executor);
+
 
     CHECK_RET(l0FusedFloydAttentionOuts[0] != nullptr, ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(l0FusedFloydAttentionOuts[1] != nullptr, ACLNN_ERR_INNER_NULLPTR);
