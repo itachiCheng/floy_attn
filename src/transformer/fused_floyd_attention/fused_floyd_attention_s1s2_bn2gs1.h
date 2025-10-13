@@ -91,20 +91,20 @@ public:
     __aicore__ inline void Process();
 
     // define matmul
-    // using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T>;
-    // using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::NONE, enableL1Reuse>;
-    // using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
-    // using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T>;
-    // matmul::Matmul<a1Type, b1Type, c1Type, bias1Type, GetMmCfg(enableL1Reuse)> bmm1;
-
-    using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::BSNGD>;
-    using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::BSNGD>;
+    using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T>;
+    using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::NONE, enableL1Reuse>;
     using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
-    using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::BSNGD>;
-    matmul::Matmul<a1Type, b1Type, c1Type, bias1Type> bmm1;
+    using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T>;
+    matmul::Matmul<a1Type, b1Type, c1Type, bias1Type, GetMmCfg(enableL1Reuse)> bmm1;
 
-    // using c1NzType = MatmulType<TPosition::GM, CubeFormat::NZ, T>;
-    // matmul::Matmul<a1Type, b1Type, c1NzType, bias1Type, GetMmCfg(enableL1Reuse)> bmm1Nz;
+    // using a1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, false, LayoutMode::BSNGD>;
+    // using b1Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T, true, LayoutMode::BSNGD>;
+    // using bias1Type = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+    // using c1Type = MatmulType<TPosition::GM, CubeFormat::ND, T, false, LayoutMode::BSNGD>;
+    // matmul::Matmul<a1Type, b1Type, c1Type, bias1Type> bmm1;
+
+    using c1NzType = MatmulType<TPosition::GM, CubeFormat::NZ, T>;
+    matmul::Matmul<a1Type, b1Type, c1NzType, bias1Type, GetMmCfg(enableL1Reuse)> bmm1Nz;
 
     // define batchmatmul
     using a2Type = MatmulType<TPosition::GM, CubeFormat::ND, INPUT_T>;
