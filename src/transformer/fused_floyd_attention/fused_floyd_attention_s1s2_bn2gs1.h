@@ -858,10 +858,11 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     n2Offset = 0;
     int64_t s2Offset = 0;
     // BNSD
-    bOffset = extraInfo.boIdx * this->s1S2 * this->gD;
+    // bOffset = extraInfo.boIdx * this->s1S2 * this->gD;
+    bOffset = extraInfo.boIdx * this->n2S2D;
     
     // n2Offset = extraInfo.n2oIdx * this->s2D;
-    n2Offset = extraInfo.s2LoopCount * 1024 * 1024 * 32;
+    n2Offset = extraInfo.s2LoopCount * 1024 * 1920 * 32;
     // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD;
     s2Offset = extraInfo.s1oIdx * this->s1BaseD;
     int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
