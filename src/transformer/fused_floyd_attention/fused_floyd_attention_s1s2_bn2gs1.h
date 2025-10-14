@@ -861,7 +861,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
     bOffset = extraInfo.boIdx * this->s1S2 * this->gD;
     
     // n2Offset = extraInfo.n2oIdx * this->s2D;
-    n2Offset = extraInfo.s2LoopCount * this->s2BaseNratioD * this->s1Size * dSize;
+    n2Offset = extraInfo.s2LoopCount * s2BaseNratioSize * this->s1Size * dSize;
     // s2Offset = extraInfo.s2StartIdx * dSize + extraInfo.s2LoopCount * this->s2BaseNratioD; // this->s2BaseNratioD = 1024
     s2Offset = extraInfo.s1oIdx * this->s1BaseD;
     int64_t kCoreOffset = bOffset + n2Offset + s2Offset;
@@ -871,10 +871,10 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
         bmm1.SetTensorB(this->keyGm1[kCoreOffset + idx*dSize], true);
         // bmm1.SetTail(extraInfo.s1RealSize, extraInfo.s2RealSize);
         if constexpr (enableL1Reuse) {
-            bmm1.template IterateBatch<true>(this->mm1Res[extraInfo.taskIdMod2][idx*this->s2BaseNratioD], 1, 1, false, 0, 0, 0, false, 0);
+            bmm1.template IterateBatch<true>(this->mm1Res[extraInfo.taskIdMod2][idx*s2BaseNratioSize], 1, 1, false, 0, 0, 0, false, 0);
             // bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], 1, 1, false, 0, 0, 0, false, 0);
         } else {
-            bmm1.template IterateBatch<true>(this->mm1Res[extraInfo.taskIdMod2][idx*this->s2BaseNratioD], 1, 1, false, 0, 0, 0, false, 0);
+            bmm1.template IterateBatch<true>(this->mm1Res[extraInfo.taskIdMod2][idx*s2BaseNratioSize], 1, 1, false, 0, 0, 0, false, 0);
             // bmm1.IterateBatch(this->mm1Res[extraInfo.taskIdMod2][idx * 1024], 1, 1, false, 0, 0, 0, false, 0);
         }
     }
