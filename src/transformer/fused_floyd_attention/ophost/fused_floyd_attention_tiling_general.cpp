@@ -1718,13 +1718,13 @@ protected:
         // return true;
 
         // B, b;  N, n2; M, s1; D, d;  K s2
-        bmm1.SetShape(1, 1024, 32); // N, K, D
-        bmm1.SetOrgShape(1, 1024, 32);
+        bmm1.SetShape(1, 1024, 64); // N, K, D
+        bmm1.SetOrgShape(1, 1024, 64);
         bmm1.SetBias(false);
         // bmm1.SetBufferSpace(-1, -1, -1);
         // 输入顺序B S N G D   SBNGD
-        bmm1.SetALayout(1, 1, 1, 1024, 32); //     [1, 128, D]   NMD, KMD  SBNGD
-        bmm1.SetBLayout(1, 1024, 1, 1024, 32); //  [1024, 128, D]
+        bmm1.SetALayout(1, 1, 1, 1024, 64); //     [1, 128, D]   NMD, KMD  SBNGD
+        bmm1.SetBLayout(1, 1024, 1, 1024, 64); //  [1024, 128, D]
         bmm1.SetCLayout(1, 1, 1, 128, 1024);  // 1,1,1,1024,1024
         bmm1.SetBatchNum(1);
 
